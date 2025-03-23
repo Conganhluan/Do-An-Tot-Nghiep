@@ -46,6 +46,23 @@ def controller_thread(FL_manager: FL_Manager):
             print(f"Client {client.ID} returned: '{result}'")
         writer.close()
 
+    # Init a round
+    async def init_round(round_manager: Round_Manager):
+
+        for client in round_manager.client_list:
+            dh_params = round_manager.get_DH_params()
+            asyncio.create_task(request_DH_public_key(client, dh_params))
+        all_remaining_tasks = asyncio.all_tasks()
+        all_remaining_tasks.remove(asyncio.current_task())
+        await asyncio.wait(all_remaining_tasks)
+
+        for client in round_manager.client_list:
+            needed_information = round_manager.get_needed_info_for_client(client.ID)
+            asyncio.create_task(send_round_information(client, needed_information))
+        all_remaining_tasks = asyncio.all_tasks()
+        all_remaining_tasks.remove(asyncio.current_task())
+        await asyncio.wait(all_remaining_tasks)
+
     # Get next command from stdinput
     while True:
         
@@ -73,9 +90,4 @@ def controller_thread(FL_manager: FL_Manager):
         # Init a new training round
         elif "init" in command and "round" in command:
             round_manager : Round_Manager = Round_Manager(FL_manager.choose_clients(Helper.get_env_variable('ATTEND_CLIENTS')))
-            for client in round_manager.client_list:
-                dh_params = round_manager.get_DH_params()
-                asyncio.run(request_DH_public_key(client, dh_params))
-            for client in round_manager.client_list:
-                needed_information = round_manager.get_needed_info_for_client(client.ID)
-                asyncio.run(send_round_information(client, needed_information))
+            asyncio.run(init_round(round_manager))

@@ -80,7 +80,7 @@ class Round_Manager():
         
         # Create graph and add round information for clients
         # Please insert here to specify the neighbor_num more useful
-        neighbor_num = min(29, len(self.client_list)-1)
+        neighbor_num = min(30, len(self.client_list)-1)
 
         graph = Helper.build_graph(len(self.client_list), neighbor_num)
         for round_ID in range(len(self.client_list)):
