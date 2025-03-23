@@ -2,8 +2,9 @@ import asyncio
 from Manager import Manager
 from Signer import Signer
 from Helper import Helper
+from Masker import Masker
 
-def controller_thread(manager: Manager, signer: Signer):
+def controller_thread(flag: str, manager: Manager, signer: Signer):
 
     async def register():
 
@@ -16,7 +17,7 @@ def controller_thread(manager: Manager, signer: Signer):
         
         # Get response
         result = await reader.readuntil()
-        if result == b"Sucessfully\n":
+        if result == b"Successfully\n":
             print("Register successfully!")
             writer.close()
         else:
@@ -26,3 +27,15 @@ def controller_thread(manager: Manager, signer: Signer):
 
     # Register with Trusted Party
     asyncio.run(register())
+
+    # Debugging
+    while True:
+        command = input()
+        if command in ('quit', "exit", "end", "stop"):
+            print("Client ends!")
+            quit()
+        if command == "round information":
+            print(f"ID: {manager.round_ID}")
+            print("Neighbor list:")
+            for neighbor in manager.neighbor_list:
+                print(f"ID: {neighbor.round_ID} - {neighbor.host}:{neighbor.port}, DH public key: {neighbor.DH_public_key}")

@@ -15,7 +15,7 @@ class Manager:
         
         # Get random port
         while True:
-            self.port = randint(4000, 6000)
+            self.port = randint(60000, 65535)
             if socket(AF_INET, SOCK_STREAM).connect_ex(('localhost', self.port)):
                 break
 

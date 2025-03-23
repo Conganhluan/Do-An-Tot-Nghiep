@@ -5,7 +5,7 @@ from Helper import Helper
 
 def listener_thread(FL_manager: FL_Manager):
     
-    print("listener is on!")
+    print(f"Listener is on at port {Helper.get_env_variable("TRUSTED_PARTY_PORT")}")
 
     async def shell(reader: telnetlib3.TelnetReader, writer: telnetlib3.TelnetWriter):
             
@@ -24,7 +24,7 @@ def listener_thread(FL_manager: FL_Manager):
             # Add client
             FL_manager.add_client(client_id, client_host, client_port, RSA_keys)
             print(f"Successfully register new client: {client_id}, {client_host}:{client_port}")
-            writer.write("Sucessfully\n")
+            writer.write("Successfully\n")
             await writer.drain()
 
             writer.write("Hehehehe\n")

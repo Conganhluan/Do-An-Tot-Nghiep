@@ -1,6 +1,7 @@
 from Helper import Helper
 from random import randint, choices
 from sympy import randprime, primitive_root
+from copy import deepcopy
 
 class Client_info:
         
@@ -62,11 +63,19 @@ class FL_Manager():
         return self.commitment_params
     
     def choose_clients(self, client_num: int) -> list[Client_info]:
-        return choices(self.client_list, weights=[max(client.choose_possibility, 0) for client in self.client_list], k = client_num)
+        if client_num > len(self.client_list):
+            client_num = len(self.client_list)
+        return_list = list()
+        client_list = deepcopy(self.client_list)
+        for i in range(client_num):
+            chosen_one = choices(client_list, weights=[max(client.choose_possibility, 0) for client in client_list])[0]
+            client_list.remove(chosen_one)
+            return_list.append(chosen_one)
+        return return_list
     
 class Round_Manager():
 
-    def __init__(self, client_list: list[Client_info], commitment_params: Commitment_params):
+    def __init__(self, client_list: list[Client_info]):
         self.client_list = client_list
         
         # Create graph and add round information for clients
@@ -77,11 +86,11 @@ class Round_Manager():
         for round_ID in range(len(self.client_list)):
             self.client_list[round_ID].set_round_information(round_ID, graph[round_ID])
 
-        self.commitment_params = commitment_params
+        self.commitment_params = Commitment_params()
         self.dh_params = DH_params()
 
-    def get_DH_params(self) -> tuple[int]:
-        return (self.dh_params.g, self.dh_params.q)
+    def get_DH_params(self) -> DH_params:
+        return self.dh_params
     
     def set_DH_public_key(self, client_ID: int, DH_public_key: int) -> None:
         self.__get_client_by_ID__(client_ID).set_DH_public_key(DH_public_key)
