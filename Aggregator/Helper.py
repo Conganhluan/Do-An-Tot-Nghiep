@@ -1,4 +1,5 @@
 from scipy.interpolate import lagrange
+from json import load
 
 class Helper:
     
@@ -15,3 +16,6 @@ class Helper:
             Y.append(y)
         return int(lagrange(X, Y).coefficients.round())
     
+    @staticmethod
+    def get_env_variable(name: str) -> int | str:
+        return load(open("../.env", "r", encoding='UTF-8'))[name]

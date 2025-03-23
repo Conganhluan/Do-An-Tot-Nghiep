@@ -1,19 +1,25 @@
+import asyncio
+from Helper import Helper
 from Manager import FL_Manager, Round_Manager
-from time import time
 
-class Controller:
-    
-    def __init__(self, FL_manager: FL_Manager):
-        self.FL_manager = FL_manager
-        self.round_manager: None | Round_Manager = None
+def controller_thread(FL_manager: FL_Manager):
 
-    def register_client(self, host: str, port: int, RSA_public_key: tuple[int]):
-        self.FL_manager.add_client(int(time()*1000), host, port, RSA_public_key)
+    # Get next command from stdinput
+    while True:
+        
+        command = input()
 
-    def init_round(self, client_num: int):
-        client_list = self.FL_manager.choose_clients(client_num)
-        self.round_manager = Round_Manager(client_list, self.FL_manager.commitment_params)
-        # Please insert code here
-            # using self.round_manager.get_DH_params to send DH params to clients
-            # using self.round_manager.set_DH_public_key to assign DH public keys for each client
-            # using self.round_manager.get_needed_info_for_client to send needed information for each client
+        # Stop the trusted party
+        if command in ("end", "quit", "exit"):
+            print("Program ends!")
+            quit()
+        
+        # List the client that registered with trusted party
+        elif "client" in command and "list" in command:
+            print("Registed client list:")
+            for client in FL_manager.client_list:
+                print(f"ID: {client.ID}, Address: {client.host}:{client.port}, RSA keys: {client.RSA_pulic_key}")
+
+        # Init a new training round
+        elif "init" in command and "round" in command:
+            pass

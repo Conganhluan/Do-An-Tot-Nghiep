@@ -1,3 +1,5 @@
+from json import load
+
 class Helper:
 
     @staticmethod
@@ -48,3 +50,7 @@ class Helper:
             done_check = 1
 
         return neighbor_list
+    
+    @staticmethod
+    def get_env_variable(name: str) -> int | str:
+        return load(open("../.env", "r", encoding='UTF-8'))[name]

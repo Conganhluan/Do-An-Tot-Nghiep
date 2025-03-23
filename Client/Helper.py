@@ -1,5 +1,6 @@
 from hashlib import sha256
 from Crypto.Cipher import AES
+from json import load
 
 class Helper:
 
@@ -34,4 +35,6 @@ class Helper:
 
         return int.from_bytes(random_bytes, "big")
     
-    
+    @staticmethod
+    def get_env_variable(name: str) -> int | str:
+        return load(open("../.env", "r", encoding='UTF-8'))[name]
