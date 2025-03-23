@@ -27,7 +27,8 @@ def listener_thread(flag: str, manager: Manager, masker: Masker):
 
             round_ID = int(processed_data[1])
             neighbor_num = int(processed_data[2])
-            print(f"Confirm round ID: {round_ID}, {neighbor_num} neighbors")
+            print(f"Confirm round ID: {round_ID}")
+
             neighbor_list = []
             for i in range(neighbor_num):
                 

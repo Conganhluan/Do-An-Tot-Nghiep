@@ -27,7 +27,7 @@ def controller_thread(FL_manager: FL_Manager):
         writer.close()
 
     # Send round information for each client
-    async def send_round_information(client: Client_info, needed_information: dict):
+    async def send_round_information_to_client(client: Client_info, needed_information: dict):
 
         # Default action, define reader/writer and remove the first 3 bytes (\xff\xfd\x18) from telnet server
         reader, writer = await asyncio.open_connection(client.host, client.port)
@@ -46,6 +46,28 @@ def controller_thread(FL_manager: FL_Manager):
             print(f"Client {client.ID} returned: '{result}'")
         writer.close()
 
+    # Send signal of Round Initiation to Aggregator
+    async def send_round_information_to_aggregator():
+
+        # Default action, define reader/writer and remove the first 3 bytes (\xff\xfd\x18) from telnet server
+        reader, writer = await asyncio.open_connection(FL_manager.aggregator_info.host, FL_manager.aggregator_info.port)
+        _ = await reader.read(3)
+
+        # Send initiation signal
+        writer.write(f"Init the round_{len(round_manager.client_list)}_{len(round_manager.client_list[0].neighbor_list)}\n".encode("UTF-8"))
+        
+        for client in round_manager.client_list:
+            writer.write(f"{client.round_ID}_{client.host}_{client.port}_{client.DH_public_key}_{client.RSA_pulic_key[0]}_{client.RSA_pulic_key[1]}\n".encode('UTF-8'))
+            writer.write(f"{'_'.join([str(neighbor_round_ID) for neighbor_round_ID in client.neighbor_list])}\n".encode('UTF-8'))
+
+        # Get response
+        result = await reader.readuntil()
+        if result == b"Successfully\n":
+            print(f"Successfully send initiation signal to Aggregator!")
+        else:
+            print(f"Aggregator returned: '{result}'")
+        writer.close()
+
     # Init a round
     async def init_round(round_manager: Round_Manager):
 
@@ -58,7 +80,9 @@ def controller_thread(FL_manager: FL_Manager):
 
         for client in round_manager.client_list:
             needed_information = round_manager.get_needed_info_for_client(client.ID)
-            asyncio.create_task(send_round_information(client, needed_information))
+            asyncio.create_task(send_round_information_to_client(client, needed_information))
+        asyncio.create_task(send_round_information_to_aggregator())
+
         all_remaining_tasks = asyncio.all_tasks()
         all_remaining_tasks.remove(asyncio.current_task())
         await asyncio.wait(all_remaining_tasks)
@@ -89,5 +113,5 @@ def controller_thread(FL_manager: FL_Manager):
 
         # Init a new training round
         elif "init" in command and "round" in command:
-            round_manager : Round_Manager = Round_Manager(FL_manager.choose_clients(Helper.get_env_variable('ATTEND_CLIENTS')))
+            round_manager : Round_Manager = Round_Manager(FL_manager.choose_clients(Helper.get_env_variable('ATTEND_CLIENTS')), FL_manager.current_round)
             asyncio.run(init_round(round_manager))

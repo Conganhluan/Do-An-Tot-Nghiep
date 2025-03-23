@@ -12,7 +12,7 @@ def listener_thread(FL_manager: FL_Manager):
         data_input = await reader.readuntil()
         processed_data = data_input.decode('UTF-8').split('_')
         
-        # A client is register, send "register_<client host>_<client port>_<RSA key e>_<RSA key n>"
+        # A client registers, send "register_<client host>_<client port>_<RSA key e>_<RSA key n>"
         if processed_data[0] == 'register' and len(processed_data) == 5:
         
             # Create a client
@@ -24,10 +24,20 @@ def listener_thread(FL_manager: FL_Manager):
             # Add client
             FL_manager.add_client(client_id, client_host, client_port, RSA_keys)
             print(f"Successfully register new client: {client_id}, {client_host}:{client_port}")
-            writer.write("Successfully\n")
+            writer.write(f"Successfully_{FL_manager.aggregator_info.host}_{FL_manager.aggregator_info.port}_{FL_manager.commitment_params.p}_{FL_manager.commitment_params.h}_{FL_manager.commitment_params.k}\n")
             await writer.drain()
 
-            writer.write("Hehehehe\n")
+        # The aggregator register, send "aggregator_<aggregator host>_<aggregator port>"
+        if processed_data[0] == 'aggregator' and len(processed_data) == 3:
+        
+            # Create a client
+            aggregator_host = processed_data[1]
+            aggregator_port = int(processed_data[2])
+
+            # Add client
+            FL_manager.register_aggregator(aggregator_host, aggregator_port)
+            print(f"Successfully register the aggregator: {aggregator_host}:{aggregator_port}")
+            writer.write(f"Successfully_{FL_manager.commitment_params.p}_{FL_manager.commitment_params.h}_{FL_manager.commitment_params.k}\n")
             await writer.drain()
         
         else:

@@ -15,7 +15,7 @@ class Client_info:
         # Round attributes
         self.round_ID = 0
         self.DH_public_key = 0
-        self.neighbor_list = 0
+        self.neighbor_list = None
 
     def set_DH_public_key(self, DH_public_key: int):
         self.DH_public_key = DH_public_key
@@ -23,6 +23,12 @@ class Client_info:
     def set_round_information(self, client_round_ID: int, neighbor_round_ID_list: list[int]):
         self.round_ID = client_round_ID
         self.neighbor_list = neighbor_round_ID_list
+
+class Aggregator_info:
+
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
 
 class Commitment_params:
 
@@ -43,6 +49,11 @@ class FL_Manager():
     def __init__(self):
         self.client_list = list()
         self.commitment_params = Commitment_params()
+        self.current_round = 0
+        self.global_weight_commitment = list()
+
+    def register_aggregator(self, host: str, port: int):
+        self.aggregator_info = Aggregator_info(host, port)
 
     def __get_client_by_ID__(self, client_ID: int) -> Client_info | None:
         for client_info in self.client_list:
@@ -75,8 +86,9 @@ class FL_Manager():
     
 class Round_Manager():
 
-    def __init__(self, client_list: list[Client_info]):
+    def __init__(self, client_list: list[Client_info], round_number: int):
         self.client_list = client_list
+        self.round_number = round_number
         
         # Create graph and add round information for clients
         # Please insert here to specify the neighbor_num more useful

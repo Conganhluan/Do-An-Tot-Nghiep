@@ -1,17 +1,22 @@
-from hashlib import sha256
-from Crypto.Cipher import AES
+import threading
+from Listener import listener_thread
+from Controller import controller_thread, Manager
 
-class Helper:
+def main():
 
-    @staticmethod
-    def PRNG(seed: int, num_bytes: int = 8):
-        """
-        Pseudo random generator using AES-CTR.
-        ------
-        Return a random integer of size `num_bytes`
-        """
-        key = sha256(str(seed).encode()).digest()[:16]
-        cipher = AES.new(key, AES.MODE_CTR, nonce = key[:12])
-        random_bytes = cipher.encrypt(b'\x00' * num_bytes)
+    flag = "NONE"
+    manager : Manager = Manager()
 
-        return int.from_bytes(random_bytes, "big")
+    # Create a server listening and return needed information
+    listener = threading.Thread(target=listener_thread, args=(flag, manager), daemon=True)
+    listener.start()
+
+    # Create a controller to run as order of Trusted Party and Aggregator
+    controller = threading.Thread(target=controller_thread, args=(flag, manager))
+    controller.start()
+    controller.join()
+
+if __name__ == "__main__":
+    main()
+else:
+    raise Exception("Aggregator_Main.py must be run as main file, not imported!")

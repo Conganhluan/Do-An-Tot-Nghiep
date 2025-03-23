@@ -1,11 +1,10 @@
 import threading
 from Listener import listener_thread
-from Controller import controller_thread, Manager, Signer, Masker
+from Controller import controller_thread, Manager, Masker
 
 def main():
 
-    flag = "None"
-    signer : Signer = Signer()
+    flag = "NONE"
     manager: Manager = Manager()
     masker: Masker = None
 
@@ -14,7 +13,7 @@ def main():
     listener.start()
 
     # Create a controller to run as order of Trusted Party and Aggregator
-    controller = threading.Thread(target=controller_thread, args=(flag, manager, signer, ))
+    controller = threading.Thread(target=controller_thread, args=(flag, manager, ))
     controller.start()
     controller.join()
 
