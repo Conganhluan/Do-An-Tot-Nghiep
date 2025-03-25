@@ -1,5 +1,5 @@
 from Thread.Worker.Helper import Helper
-from Thread.Worker.BaseModel import *
+from Thread.Worker.BaseModel import *           # This can be removed
 import random
 from sympy import randprime, primitive_root
 from copy import deepcopy

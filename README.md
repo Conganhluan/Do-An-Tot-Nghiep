@@ -1,3 +1,37 @@
+# Architecture
+
+## Components
+
+There are 3 components: Trusted party, Aggregator and Client(s)
+- The Trusted party must be online first and wait for registration from the Aggregator and Client(s)
+- The Aggregator must be online second and register with the Trusted party
+- Then Client(s) can register with the Trusted party and get information about the Aggregator
+
+## Threads
+
+Each component has 3 threads: Commander, Controller and Listener
+- Commander will be used for controlling/debugging/monitoring. It gets commands from stdin and acts as programmed. Here are some commands:
+    - Shared commands: stop, restart, cls, *etc.*
+    - Trusted party commands: public info, list client, init round *etc.*
+    - Aggregator commands: register (used to re-register), pubic info, round info, *etc.*
+    - Client commands: register (used to re-register), public info, client info, *etc.*
+- Listener will get data/command from another components, then transfer requested data or set flag for the next action of Controller
+- Controller will be the backbone of the components, it takes flags set by Commander and Listener and run the process
+
+## Worker
+
+- The main Worker is Manager, whose object will be shared among 3 Threads to keep the information synchronized.
+- Another Worker is Helper, which will provide static methods for general process such as exponent_modulo, get_available_port, *etc.*
+    - It also has static method `timing`, which can be used as method decorater to get the run time of another class methods
+- Besides, there is Thread_Controller, which contains every async functions that Controller needs to run asynchronously
+
+## ML models
+
+- File `Aggregator/Thread/Worker/BaseModel.py` contains definitions of ML model, which can be used in this FL architecture
+- To change the used model, please change the model type at `Aggregator/Main.py`, line 11
+- The used model definition then can be transferred from the Aggregator > the Trusted party > Client(s) during registration processes
+- The file `Client/Thread/Worker/BaseModel.py` is used to support developing process only, it has no practical use at all. It is possible to remove this file and line 2 of file `Client/Thread/Worker/Manager.py`
+
 # Communication
 
 0. Aggregator/Client aborts the process due to abnormal activities
