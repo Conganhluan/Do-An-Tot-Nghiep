@@ -28,6 +28,15 @@ def commander_thread(manager: Manager):
             for neighbor in manager.neighbor_list:
                 print(f"ID: {neighbor.round_ID} - {neighbor.host}:{neighbor.port}, DH public key: {neighbor.DH_public_key}")
 
+        elif command == "self secret":
+            print(f"ID: {manager.round_ID} - {manager.host}:{manager.port}")
+            print(f"ss: {manager.masker.ss}, ps: {manager.masker.ps}")
+
+        elif command == "neighbor secrets":
+            for neighbor in manager.neighbor_list:
+                print(f"ID: {neighbor.round_ID} - {neighbor.host}:{neighbor.port}")
+                print(f"ss: {neighbor.ss_point}, ps: {neighbor.ps_point}")
+
         elif command == 'register':
             manager.set_flag(manager.FLAG.RE_REGISTER)
 
@@ -38,4 +47,4 @@ def commander_thread(manager: Manager):
             os.execv(sys.executable, ['python'] + sys.argv)
 
         else:
-            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart]")
+            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart, self secret, neighbor secrets]")

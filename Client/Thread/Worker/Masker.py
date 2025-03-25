@@ -11,13 +11,21 @@ class Masker:
     def get_DH_public_key(self) -> int:
         return Helper.exponent_modulo(self.g, self.ps, self.q)
 
-    def get_PRNG_ss(self, num_bytes: int = 8) -> int:
+    def get_PRNG_ss(self, num_bytes: int = 32) -> int:
         return Helper.PRNG(self.ss, num_bytes)
     
-    def get_PRNG_ps(self, num_bytes: int = 8) -> int:
-        return Helper.PRNG(self.ps, num_bytes)
+    def get_PRNG_ps(self, self_ID: int, neighbor_ps: list[tuple[int, int]], num_bytes: int = 32) -> int:
+        total = 0
+        for neighbor_ID, neighbor_public_key in neighbor_ps:
+            if neighbor_ID > self_ID:
+                total += Helper.exponent_modulo(neighbor_public_key, self.ps, self.q)
+            elif neighbor_ID < self.ID:
+                total -= Helper.exponent_modulo(neighbor_public_key, self.ps, self.q)
+            else:
+                raise Exception("There is something wrong here!")
+        return Helper.PRNG(total, num_bytes)
 
-    def __share_secret__(self, secret: int, neighbor_num: int, share_limit: int, coeff_limit: int) -> list[list[int], list[int]]:
+    def __share_secret__(self, secret: int, neighbor_num: int, share_limit: int, coeff_limit: int) -> list[tuple[int, int]]:
         """
         Create a polynomial with the secret as free coefficient, then share points of it
         ------
@@ -36,8 +44,9 @@ class Masker:
         coeffs = [secret] + [randint(-coeff_limit, coeff_limit)*2+1 for i in range(share_limit-1)]
 
         # Get the smallest possible |x| without 0
-        x_list = list(range(-neighbor_num//2-1, neighbor_num - neighbor_num//2))
+        x_list = list(range(-neighbor_num//2-1, neighbor_num//2+3))
         x_list.remove(0)
+        x_list = x_list[:neighbor_num]
 
         # Make point_list((x1,y1), (x2, y2))
         point_list = []
@@ -52,13 +61,12 @@ class Masker:
         # Detect errors if there is any
         if len(point_list) != neighbor_num:
             raise Exception("There aren't enough points to share with neighbors")
-        
-        print(coeffs)
+
         return point_list
     
-    def share_ss(self, neighbor_num: int, share_limit: int = 0, coeff_limit: int = 5) -> list[list[int], list[int]]:
+    def share_ss(self, neighbor_num: int, share_limit: int = 0, coeff_limit: int = 5) -> list[tuple[int, int]]:
         return self.__share_secret__(self.ss, neighbor_num, share_limit, coeff_limit)
     
-    def share_ps(self, neighbor_num: int, share_limit: int = 0, coeff_limit: int = 5) -> list[list[int], list[int]]:
+    def share_ps(self, neighbor_num: int, share_limit: int = 0, coeff_limit: int = 5) -> list[tuple[int, int]]:
         return self.__share_secret__(self.ps, neighbor_num, share_limit, coeff_limit)
     

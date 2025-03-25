@@ -47,6 +47,7 @@ def listener_thread(manager: Manager):
             # <base_model_commit/previous_global_model_commit>
             data = await Helper.receive_data(reader)
             manager.set_last_commit([int(param) for param in data.split(b' ')])
+            print("Confirm to get the model commit from the Trusted party")
 
             neighbor_list = list()
             for _ in range(neighbor_num):
@@ -86,6 +87,19 @@ def listener_thread(manager: Manager):
             # SUCCESS
             await Helper.send_data(writer, "SUCCESS")
             print("Successfully receive global model from the Aggregator")
+            manager.set_flag(manager.FLAG.TRAIN)
+            writer.close()
+
+        # Client sends secret points to its neighbors
+        elif b'POINTS' == data[:6]:
+
+            # POINTS <SS_point_X> <SS_point_Y> <PS_point_X> <PS_point_Y>
+            neighbor_round_ID, ss_X, ss_Y, ps_X, ps_Y = [int(num) for num in data[7:].split(b' ', 4)]
+            manager.set_secret_points(neighbor_round_ID, (ss_X, ss_Y), (ps_X, ps_Y))
+
+            # SUCCESS
+            await Helper.send_data(writer, "SUCCESS")
+            print(f"Successfully receive secret points from client {neighbor_round_ID}")
             writer.close()
 
         else:

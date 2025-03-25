@@ -90,7 +90,7 @@ Client      >>> SUCCESS
 
 7. Client sends secret points to its neighbors
 ```
-Client      >>> POINTS <SS_point_X> <SS_point_Y> <PS_point_X> <PS_point_Y>                                              # (SS_point_X,SS_point_Y) is a point in polynomial F(x): x^n + ... + x^2 + x + <ss>
+Client      >>> POINTS <self_round_ID> <SS_point_X> <SS_point_Y> <PS_point_X> <PS_point_Y>                                          # (SS_point_X,SS_point_Y) is a point in polynomial F(x): x^n + ... + x^2 + x + <ss>
 Other Client>>> SUCCESS
 ```
 

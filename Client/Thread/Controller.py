@@ -24,5 +24,10 @@ def controller_thread(manager: Manager):
         elif flag == manager.FLAG.RE_REGISTER:
 
             asyncio.run(send_CLIENT(manager))
+        
+        elif flag == manager.FLAG.TRAIN:
+
+            # manager.start_train()
+            asyncio.run(send_POINTS(manager))
 
         sleep(5)

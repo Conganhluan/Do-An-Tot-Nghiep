@@ -7,10 +7,15 @@ import random, torch
 class Client_info:
 
     def __init__(self, round_ID: int, host: str, port: int, DH_public_key: int):
+        # Communication
         self.round_ID = round_ID
         self.host = host
         self.port = port
+        # Masking
         self.DH_public_key = DH_public_key
+        # Secret sharing
+        self.ss_point : tuple[int, int] = None
+        self.ps_point : tuple[int, int] = None
 
 class Aggregator_info:
 
@@ -31,6 +36,7 @@ class Commiter:
         data = int(data)
         return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
 
+    @Helper.timing
     def check_commit(self, data: list, commit: list) -> bool:
         assert self.r
         assert len(data) == len(commit)
@@ -64,6 +70,7 @@ class Trainer:
 
     def __init__(self, model_type: type):
         self.local_model: CNNModel = model_type()
+        self.data_num = 0
 
     def load_parameters(self, parameters: list):
         tensor = torch.tensor(parameters, requires_grad=True)
@@ -90,6 +97,9 @@ class Manager:
             pass
         class STOP:
             # Used to stop processing
+            pass
+        class TRAIN:
+            # Used to start training
             pass
 
     def __init__(self):
@@ -147,3 +157,30 @@ class Manager:
     def abort(self, message: str):
         self.abort_message = message
         self.set_flag(self.FLAG.ABORT)
+    
+    def start_train(self):
+        self.trainer.train()
+
+    def get_masked_model(self) -> list:
+        ss_masking = self.masker.get_PRNG_ss()
+        ps_masking = self.masker.get_PRNG_ps(self.round_ID, [(neighbor.round_ID, neighbor.DH_public_key) for neighbor in self.neighbor_list])
+        total_masking = ss_masking + ps_masking
+        local_parameters = self.trainer.get_parameters()
+        for idx in range(len(local_parameters)):
+            local_parameters[idx] = local_parameters[idx] + total_masking
+        return local_parameters
+    
+    def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
+        ss_points = self.masker.share_ss(len(self.neighbor_list))
+        ps_points = self.masker.share_ps(len(self.neighbor_list))
+        return zip(ss_points, ps_points)
+    
+    def get_send_model(self, parameters: list) -> list:
+        return [round(param*self.accuracy*self.trainer.data_num) for param in parameters]
+    
+    def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
+        for neighbor in self.neighbor_list:
+            if neighbor.round_ID == neighbor_ID:
+                neighbor.ss_point = ss_point
+                neighbor.ps_point = ps_point
+                return
