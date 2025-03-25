@@ -1,0 +1,41 @@
+from Thread.Worker.Manager import Manager
+import os, sys
+
+def commander_thread(manager: Manager):
+    
+    print("Commander is on and wait for input!")
+
+    while True:
+
+        command = input()
+
+        if command == 'stop':
+            print("Aggregator stops!")
+            quit()
+        
+        elif command == 'round info':
+            print("Attendee clients in round:")
+            for client in manager.client_list:
+                print(f"{client.round_ID} - {client.host}:{client.port}, neighbors: {client.neighbor_list}")
+                print(f"DH_public_key: {client.DH_public_key}")
+                print(f"RSA public key: e: {client.RSA_public_key.e}, n: {client.RSA_public_key.n}")
+                print(f"Status: {"Online" if client.is_online else "Offline"}, dataset number: {client.local_datanum}")
+
+        elif command == 'public info':
+            print(f"Self address: {manager.host}:{manager.port}")
+            print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}")
+
+        elif command == 'register':
+            manager.set_flag(manager.FLAG.RE_REGISTER)
+
+        elif command == 'start round':
+            manager.set_flag(manager.FLAG.START_ROUND)
+        
+        elif command == 'cls':
+            os.system('cls')
+        
+        elif command == 'restart':
+            os.execv(sys.executable, ['python'] + sys.argv)
+
+        else:
+            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart]")
