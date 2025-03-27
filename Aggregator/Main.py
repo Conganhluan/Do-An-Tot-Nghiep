@@ -2,13 +2,13 @@ import threading
 from Thread.Commander import commander_thread
 from Thread.Listener import listener_thread
 from Thread.Controller import controller_thread
-from Thread.Worker.BaseModel import CNNModel
+from Thread.Worker.BaseModel import *
 from Thread.Worker.Manager import Manager
 import os
 
 def main():
 
-    manager : Manager = Manager(CNNModel)
+    manager : Manager = Manager(CNNModel_MNIST)
     os.system('cls')
 
     # Create a server listening and return needed information

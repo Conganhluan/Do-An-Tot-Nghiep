@@ -1,266 +1,170 @@
-# from Thread.Worker.Helper import Helper
-from torch.nn.utils import parameters_to_vector, vector_to_parameters
-# from Thread.Worker.Masker import Masker
-# from Thread.Worker.BaseModel import *
-import random, torch
-from torch.utils.data import DataLoader, TensorDataset
-import torch.optim as optim
-import torch.nn.functional as F
-import os
-from BaseModel import CNNModel
+from Thread.Worker.Helper import Helper
+from Thread.Worker.Masker import Masker
+from Thread.Worker.Trainer import Trainer
+from Thread.Worker.BaseModel import *
+import random
 
-# class Client_info:
+class Client_info:
 
-#     def __init__(self, round_ID: int, host: str, port: int, DH_public_key: int):
-#         # Communication
-#         self.round_ID = round_ID
-#         self.host = host
-#         self.port = port
-#         # Masking
-#         self.DH_public_key = DH_public_key
-#         # Secret sharing
-#         self.ss_point : tuple[int, int] = None
-#         self.ps_point : tuple[int, int] = None
+    def __init__(self, round_ID: int, host: str, port: int, DH_public_key: int):
+        # Communication
+        self.round_ID = round_ID
+        self.host = host
+        self.port = port
+        # Masking
+        self.DH_public_key = DH_public_key
+        # Secret sharing
+        self.ss_point : tuple[int, int] = None
+        self.ps_point : tuple[int, int] = None
 
-# class Aggregator_info:
+class Aggregator_info:
 
-#     def __init__(self, host: str, port: int):
-#         self.host = host
-#         self.port = port
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
 
-# class Commiter:
+class Commiter:
 
-#     def __init__(self, params : tuple[int]):
-#         self.p = params[0]
-#         self.h = params[1]
-#         self.k = params[2]
-#         self.r = None
+    def __init__(self, params : tuple[int]):
+        self.p = params[0]
+        self.h = params[1]
+        self.k = params[2]
+        self.r = None
 
-#     def commit(self, data) -> int:
-#         assert self.r
-#         data = int(data)
-#         return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+    def commit(self, data) -> int:
+        assert self.r
+        data = int(data)
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
 
-#     @Helper.timing
-#     def check_commit(self, data: list, commit: list) -> bool:
-#         assert self.r
-#         assert len(data) == len(commit)
-#         return all(self.commit(data[idx]) == commit[idx] for idx in range(len(data)))
+    @Helper.timing
+    def check_commit(self, data: list, commit: list) -> bool:
+        assert self.r
+        assert len(data) == len(commit)
+        return all(self.commit(data[idx]) == commit[idx] for idx in range(len(data)))
 
-#     def set_secret(self, r: int):
-#         self.r = r
+    def set_secret(self, r: int):
+        self.r = r
 
-# class RSA_public_key:
+class RSA_public_key:
     
-#     def __init__(self, e, n):
-#         self.e = e
-#         self.n = n
+    def __init__(self, e, n):
+        self.e = e
+        self.n = n
 
-# class Signer:
+class Signer:
 
-#     def __init__(self):
-#         RSA_key_list = open("Thread/Worker/RSA_keys.csv", "r", encoding='UTF-8').readlines()[1:]
-#         chosen_RSA_key = RSA_key_list[random.randint(0,99)].split(', ')
-#         self.d = int(chosen_RSA_key[1])
-#         self.e = int(chosen_RSA_key[2])
-#         self.n = int(chosen_RSA_key[3])
+    def __init__(self):
+        RSA_key_list = open("Thread/Worker/Data/RSA_keys.csv", "r", encoding='UTF-8').readlines()[1:]
+        chosen_RSA_key = RSA_key_list[random.randint(0,99)].split(', ')
+        self.d = int(chosen_RSA_key[1])
+        self.e = int(chosen_RSA_key[2])
+        self.n = int(chosen_RSA_key[3])
 
-#     def get_public_key(self):
-#         return RSA_public_key(self.e, self.n)
+    def get_public_key(self):
+        return RSA_public_key(self.e, self.n)
 
-#     def sign(self, data: int):
-#         return Helper.exponent_modulo(data, self.d, self.n)
+    def sign(self, data: int):
+        return Helper.exponent_modulo(data, self.d, self.n)
     
-class Trainer:
+class Manager:
 
-    def __init__(self, model_type: type):
-        self.local_model: CNNModel = model_type()
-        self.data_num = 0
-        self.data_name = "mnist" #Hiện tại Network mình mới chỉ chạy được cho mnist. Muốn chạy cho Cifar phải xây network khác vì đầu vào nó khác
-        self.log_interval = 10
+    class FLAG:
+        class NONE:
+            # Default value
+            pass
+        class RE_REGISTER:
+            # When commander wants to re-register
+            pass
+        class ABORT:
+            # Used to send abort signal to Trusted party
+            pass
+        class STOP:
+            # Used to stop processing
+            pass
+        class TRAIN:
+            # Used to start training
+            pass
 
-    def load_parameters(self, parameters: list):
-        tensor = torch.tensor(parameters, requires_grad=True)
-        vector_to_parameters(tensor, self.local_model._parameters)
+    def __init__(self):
+        # FL parameters
+            # Communication
+        self.host = "localhost"
+        self.port = Helper.get_available_port()
+        self.aggregator_info = None
+            # Public parameters
+        self.commiter = None
+        self.accuracy = 1
+            # Controller
+        self.flag = self.FLAG.NONE
+        self.abort_message = ""
+            # Trainer
+        self.trainer = None
+            # Signer
+        self.signer = Signer()
 
-    def get_dataset(self, path):
-        try:
-            split_data = torch.load(path)  # This is a Subset object
-            dataset = split_data.dataset  # Access the original dataset
-            indices = split_data.indices  # Get the indices of the subset
-            #Extract data and targets using the indices
-            data = torch.stack([dataset[i][0] for i in indices])
-            targets = torch.tensor([dataset[i][1] for i in indices]) 
-            # Create a TensorDataset
-            train_dataset = TensorDataset(data, targets)
-        except FileNotFoundError:
-            print(f"Split file not found: {path}")
+        # Round parameters
+        self.last_commit = None
+        self.round_ID = None
+        self.neighbor_list = None
+        self.masker = None
 
-        print(f"Loaded dataset split: {path}")
-        return train_dataset
+    def get_flag(self) -> type:
+        if self.flag == Manager.FLAG.NONE:
+            return Manager.FLAG.NONE
+        print(f"Get flag of {self.flag.__name__}")
+        return_flag = self.flag
+        self.flag = Manager.FLAG.NONE
+        return return_flag
 
-    def train(self, data: list):
-        # Cái đầu vào data:list này t không hiểu ý đồ của m, m có thể sửa nó lại, hiện tại là đang random dataset_id như dòng 110
-        # Please input here
-        num_data = 1
-        # Set model to training mode
-        self.local_model.train()
+    def set_flag(self, flag: type) -> None:
+        self.flag = flag
+        print(f"Set flag to {self.flag.__name__}")
 
-        while True:
-            dataset_id = random.randint(0, 200)
-            train_path = f"Worker Data/{self.data_name}_splits/{self.data_name}_train_split_{dataset_id}.pt"
-            train_dataset = self.get_dataset(train_path)
-            train_loader = DataLoader(train_dataset, batch_size=self.local_model.batch_size, shuffle=True)
+    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, commiter: Commiter, accuracy: int, model_type: type):
+        self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port)
+        self.commiter = commiter
+        self.accuracy = accuracy
+        self.trainer = Trainer(model_type)
 
-            epoch = 0
-            for epoch in range(3):
-                for batch_idx, (data, target) in enumerate(train_loader):
-                    # Clear gradient of prev batch
-                    self.local_model.optimizer.zero_grad()
-                    # Calculate output
-                    output = self.local_model(data)
-                    # Calculate loss
-                    loss = F.nll_loss(output, target)
-                    # Backpropagation
-                    loss.backward()
-                    # Update
-                    self.local_model.optimizer.step()
-                    # log
-                    if batch_idx % self.log_interval == 0:
-                        print(f"{num_data} Datasets trained \t Train Epoch: {epoch} [{len(data)*batch_idx}/{len(train_loader.dataset)} ({100* batch_idx/len(train_loader):.0f}%)] \t Loss: {loss.item():.6f}")
-                
-                # Save model sau khi xong mỗi epoch
-                torch.save(self.local_model.state_dict(), f"Worker Data/model_updates/model_update.pt")
-                self.test()
-
-            num_data += 1
+    def set_round_information(self, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
+        self.round_number = round_number
+        self.round_ID = round_ID
+        self.neighbor_list = neighbor_list
     
-    def test(self):
-        test_path = f"Worker Data/{self.data_name}_splits/{self.data_name}_test_split_0.pt"
-        test_dataset = self.get_dataset(test_path)
-        test_loader = DataLoader(test_dataset, shuffle=True)
-
-        self.local_model.load_state_dict(torch.load("Worker Data/model_updates/model_update.pt", weights_only=True))
-        self.local_model.eval()
-        test_loss = 0
-        correct = 0
-        
-        with torch.no_grad():
-            for data, target in test_loader:
-                output = self.local_model(data)
-                test_loss += F.nll_loss(output, target, reduction="sum").item()
-                pred = output.data.max(1,keepdim = True)[1]
-                correct += pred.eq(target.view_as(pred)).long().cpu().sum()
-        test_loss /= len(test_loader.dataset)
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)))
-        
-
-    def get_parameters(self) -> list:
-        return parameters_to_vector(self.local_model.parameters()).detach().numpy().tolist()
+    def set_masker(self, g: int, q: int):
+        self.masker = Masker(g, q)
     
-# class Manager:
+    def set_last_commit(self, commit: list):
+        self.last_commit = commit
 
-#     class FLAG:
-#         class NONE:
-#             # Default value
-#             pass
-#         class RE_REGISTER:
-#             # When commander wants to re-register
-#             pass
-#         class ABORT:
-#             # Used to send abort signal to Trusted party
-#             pass
-#         class STOP:
-#             # Used to stop processing
-#             pass
-#         class TRAIN:
-#             # Used to start training
-#             pass
-
-#     def __init__(self):
-#         # FL parameters
-#             # Communication
-#         self.host = "localhost"
-#         self.port = Helper.get_available_port()
-#         self.aggregator_info = None
-#             # Public parameters
-#         self.commiter = None
-#         self.accuracy = 1
-#             # Controller
-#         self.flag = self.FLAG.NONE
-#         self.abort_message = ""
-#             # Trainer
-#         self.trainer = None
-#             # Signer
-#         self.signer = Signer()
-
-#         # Round parameters
-#         self.last_commit = None
-#         self.round_ID = None
-#         self.neighbor_list = None
-#         self.masker = None
-
-#     def get_flag(self) -> type:
-#         if self.flag == Manager.FLAG.NONE:
-#             return Manager.FLAG.NONE
-#         print(f"Get flag of {self.flag.__name__}")
-#         return_flag = self.flag
-#         self.flag = Manager.FLAG.NONE
-#         return return_flag
-
-#     def set_flag(self, flag: type) -> None:
-#         self.flag = flag
-#         print(f"Set flag to {self.flag.__name__}")
-
-#     def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, commiter: Commiter, accuracy: int, model_type: type):
-#         self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port)
-#         self.commiter = commiter
-#         self.accuracy = accuracy
-#         self.trainer = Trainer(model_type)
-
-#     def set_round_information(self, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
-#         self.round_number = round_number
-#         self.round_ID = round_ID
-#         self.neighbor_list = neighbor_list
+    def abort(self, message: str):
+        self.abort_message = message
+        self.set_flag(self.FLAG.ABORT)
     
-#     def set_masker(self, g: int, q: int):
-#         self.masker = Masker(g, q)
-    
-#     def set_last_commit(self, commit: list):
-#         self.last_commit = commit
+    def start_train(self):
+        self.trainer.set_dataset_ID(self.round_ID)
+        self.trainer.train_model()
 
-#     def abort(self, message: str):
-#         self.abort_message = message
-#         self.set_flag(self.FLAG.ABORT)
+    def get_masked_model(self) -> list:
+        ss_masking = self.masker.get_PRNG_ss()
+        ps_masking = self.masker.get_PRNG_ps(self.round_ID, [(neighbor.round_ID, neighbor.DH_public_key) for neighbor in self.neighbor_list])
+        total_masking = ss_masking + ps_masking
+        local_parameters = self.trainer.get_parameters()
+        for idx in range(len(local_parameters)):
+            local_parameters[idx] = local_parameters[idx] + total_masking
+        return local_parameters
     
-#     def start_train(self):
-#         self.trainer.train()
-
-#     def get_masked_model(self) -> list:
-#         ss_masking = self.masker.get_PRNG_ss()
-#         ps_masking = self.masker.get_PRNG_ps(self.round_ID, [(neighbor.round_ID, neighbor.DH_public_key) for neighbor in self.neighbor_list])
-#         total_masking = ss_masking + ps_masking
-#         local_parameters = self.trainer.get_parameters()
-#         for idx in range(len(local_parameters)):
-#             local_parameters[idx] = local_parameters[idx] + total_masking
-#         return local_parameters
+    def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
+        ss_points = self.masker.share_ss(len(self.neighbor_list))
+        ps_points = self.masker.share_ps(len(self.neighbor_list))
+        return zip(ss_points, ps_points)
     
-#     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
-#         ss_points = self.masker.share_ss(len(self.neighbor_list))
-#         ps_points = self.masker.share_ps(len(self.neighbor_list))
-#         return zip(ss_points, ps_points)
+    def get_send_model(self, parameters: list) -> list:
+        return [round(param*self.accuracy*self.trainer.data_num) for param in parameters]
     
-#     def get_send_model(self, parameters: list) -> list:
-#         return [round(param*self.accuracy*self.trainer.data_num) for param in parameters]
-    
-#     def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
-#         for neighbor in self.neighbor_list:
-#             if neighbor.round_ID == neighbor_ID:
-#                 neighbor.ss_point = ss_point
-#                 neighbor.ps_point = ps_point
-#                 return
-            
-trainer = Trainer(CNNModel)
-trainer.train([])
+    def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
+        for neighbor in self.neighbor_list:
+            if neighbor.round_ID == neighbor_ID:
+                neighbor.ss_point = ss_point
+                neighbor.ps_point = ps_point
+                return

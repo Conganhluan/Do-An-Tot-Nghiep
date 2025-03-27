@@ -79,7 +79,7 @@ class Manager:
         self.flag = Manager.FLAG.NONE
         self.abort_message = ""
             # Aggregator
-        self.global_model : CNNModel = model_type()
+        self.global_model : CNNModel_MNIST = model_type()
         self.model_type = model_type
         
         # Round parameters

@@ -1,9 +1,8 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-class CNNModel(nn.Module):
+class CNNModel_MNIST(nn.Module):
     
     def __init__(self):
         super().__init__()

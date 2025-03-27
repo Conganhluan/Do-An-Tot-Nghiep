@@ -49,7 +49,7 @@ class Commiter:
 class DH_params:
 
     def __init__(self):
-        DH_param_list = open("Thread/Worker/DH_params.csv", "r", encoding="UTF-8").readlines()[1:]
+        DH_param_list = open("Thread/Worker/Data/DH_params.csv", "r", encoding="UTF-8").readlines()[1:]
         DH_param_pair = DH_param_list[random.randint(0, len(DH_param_list)-1)].split(",")
         self.q, self.g = int(DH_param_pair[1]), int(DH_param_pair[2])
 
