@@ -1,4 +1,4 @@
-import asyncio, telnetlib3, time, dill as pickle
+import asyncio, telnetlib3, time, dill as pickle, struct
 from Thread.Worker.Manager import Manager, RSA_public_key
 from Thread.Worker.Helper import Helper
 
@@ -35,7 +35,7 @@ def listener_thread(manager: Manager):
 
             # <base_model_commit> 
             data = await Helper.receive_data(reader)
-            manager.set_last_model_commitment([int(param) for param in data.split(b' ')])
+            manager.set_last_model_commitment([struct.unpack('Q', data[idx:idx+8])[0] for idx in range(0, len(data), 8)])
             print(f"Confirm to get the model commitment from the Aggregator")
 
             # SUCCESS

@@ -1,4 +1,4 @@
-import asyncio, telnetlib3, dill as pickle
+import asyncio, telnetlib3, struct
 from Thread.Worker.Manager import Manager, Client_info
 from Thread.Worker.Helper import Helper
 
@@ -46,7 +46,7 @@ def listener_thread(manager: Manager):
             
             # <base_model_commit/previous_global_model_commit>
             data = await Helper.receive_data(reader)
-            manager.set_last_commit([int(param) for param in data.split(b' ')])
+            manager.set_last_commit([struct.unpack('Q', data[idx:idx+8])[0] for idx in range(0, len(data), 8)])
             print("Confirm to get the model commit from the Trusted party")
 
             neighbor_list = list()
@@ -75,7 +75,7 @@ def listener_thread(manager: Manager):
 
             # <global_model_parameters>
             data = await Helper.receive_data(reader)
-            global_parameters = [float(param) for param in data.split(b' ')]
+            global_parameters = [struct.unpack('d', data[idx: idx+8])[0] for idx in range(0, len(data), 8)]
             if manager.round_number != 0:
                 for idx in range(len(global_parameters)):
                     global_parameters[idx] /= manager.accuracy

@@ -1,4 +1,4 @@
-import asyncio, dill as pickle
+import asyncio, dill as pickle, struct
 from Thread.Worker.Helper import Helper
 from Thread.Worker.Manager import Manager, Client_info, Commiter
 from Thread.Worker.BaseModel import *
@@ -25,8 +25,8 @@ async def send_AGG_REGIS(manager: Manager):
     print(f"Confirm to get the commiter from the Trusted party")
 
     # <base_model_commit>
-    data = ' '.join([str(param) for param in manager.get_model_commit()])
-    await Helper.send_data(writer, data, 32768)
+    data = b''.join([struct.pack('Q', param) for param in manager.get_model_commit()])
+    await Helper.send_data(writer, data)
     print(f"Send base model commitment to the Trusted party...")
 
     # SUCCESS
@@ -54,8 +54,8 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     await Helper.send_data(writer, data)
 
     # <global_model_parameters>
-    data = ' '.join(str(param) for param in manager.get_model_parameters())
-    await Helper.send_data(writer, data, 32768)
+    data = b''.join(struct.pack('d', param) for param in manager.get_model_parameters())
+    await Helper.send_data(writer, data)
 
     # SUCCESS
     data = await Helper.receive_data(reader)

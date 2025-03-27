@@ -2,15 +2,20 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset, Subset
 import torch.nn.functional as F
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
-from BaseModel import *
-import torchvision
+from Thread.Worker.BaseModel import *
+import torchvision, torch.optim as optim
 from tqdm import tqdm
 from Thread.Worker.Helper import Helper
+
 class Trainer:
 
     def __init__(self, model_type: type):
         self.local_model : CNNModel_MNIST = model_type()
         self.dataset_type = model_type.__name__.split('_')[-1]
+        self.batch_size = 64
+        self.epoch_num = 3
+        self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
+
 
     def set_dataset_ID(self, ID: int):
         self.ID = ID
@@ -20,8 +25,10 @@ class Trainer:
         self.root_dataset : type = getattr(torchvision.datasets, self.dataset_type)
         self.root_train_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=True, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
         self.root_test_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=False, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
+        print(f"Total number of train data: {len(self.root_train_data)}")
             # Self dataset
         self.data_num = self.root_train_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
+        print(f"Data number that I will have {self.data_num}")
         self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
         self.self_test_data = Subset(self.root_test_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
 
@@ -35,8 +42,8 @@ class Trainer:
     def __get_data__(self, data: Subset) -> TensorDataset:
         
         if self.root_dataset == torchvision.datasets.MNIST:
-            origin_data = torch.stack([data.dataset[idx][0] for idx in data.indices])
-            target_label = torch.tensor([data.dataset[idx][1] for idx in data.indices])
+            origin_data = torch.stack([dataset[0] for dataset in data.dataset])
+            target_label = torch.tensor([dataset[1] for dataset in data.dataset])
             return TensorDataset(origin_data, target_label)
     
         # Please input here any another root_dataset type (cifar10, cifar100, etc.)
@@ -56,11 +63,11 @@ class Trainer:
     def train(self, data_loader: DataLoader):
         
         for data, target in tqdm(data_loader, unit="batch", leave=False):
-            self.local_model.optimizer.zero_grad()
+            self.optimizer.zero_grad()
             output = self.local_model(data)
             loss = F.nll_loss(output, target)
             loss.backward()
-            self.local_model.optimizer.step()
+            self.optimizer.step()
     
     @torch.no_grad
     def test(self, data_loader: DataLoader, epoch_idx: int):
@@ -80,20 +87,12 @@ class Trainer:
 
     def train_model(self):
 
-        epoch_idx = 0
-        while True:
-            train_loader = DataLoader(self.__get_train_data__(), batch_size = self.local_model.batch_size)
-            test_loader = DataLoader(self.__get_test_data__())
-
+        train_loader = DataLoader(self.__get_train_data__(), batch_size = self.batch_size)
+        test_loader = DataLoader(self.__get_test_data__())
+        
+        for epoch_idx in range(self.epoch_num):  
             self.local_model.train()
             self.train(train_loader)
             epoch_idx += 1
             self.local_model.eval()
             self.test(test_loader, epoch_idx)
-            
-    
-# Unit test
-if __name__ == "__main__":
-    trainer = Trainer(CNNModel_MNIST)
-    trainer.set_dataset_ID(0)
-    trainer.train_model()

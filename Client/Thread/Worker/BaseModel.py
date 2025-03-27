@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 
 class CNNModel_MNIST(nn.Module):
     
     def __init__(self):
+        
         super().__init__()
         self.conv1 = nn.Conv2d(1,10,kernel_size=5)
         self.max_pool1 = nn.MaxPool2d(kernel_size=2)
@@ -13,9 +13,6 @@ class CNNModel_MNIST(nn.Module):
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320,50)
         self.fc2 = nn.Linear(50,10)
-
-        self.optimizer = optim.SGD(self.parameters(), lr=0.01, momentum=0.5)
-        self.batch_size = 1
 
     def forward(self, x):
         x = self.conv1(x)
@@ -29,7 +26,6 @@ class CNNModel_MNIST(nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim = 1) 
-
 
 # Please add another model types here
 # ...

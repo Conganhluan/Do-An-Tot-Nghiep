@@ -56,28 +56,27 @@ class Helper:
                 return port
             
     @staticmethod
-    async def send_data(writer: asyncio.StreamWriter | telnetlib3.TelnetWriter, data: str | bytes, chunk_size: int = 4096) -> None:
+    async def send_data(writer: asyncio.StreamWriter | telnetlib3.TelnetWriter, data: str | bytes) -> None:
+        
         if type(data) == str:
             data = data.encode()
-        try:
-            assert type(data) == bytes
-        except:
-            print(f"The data to send have abnormal type! - {type(data)}")
-            print(data)
+
+        # Send data_len
         data_len = len(data)
-        start_idx = 0
-        while start_idx < data_len:
-            writer.write(data[start_idx: start_idx + chunk_size].replace(b'\xff', b'\xff\xff') + b'|||||')
-            start_idx += chunk_size
-            await writer.drain()
-        writer.write(b'|||||')
+        writer.write(f"{str(data_len)}\n".encode())
+        await writer.drain()
+
+        # Send data
+        writer.write(data.replace(b'\xff', b'\xff\xff'))
+        await writer.drain()
 
     @staticmethod
     async def receive_data(reader: asyncio.StreamReader | telnetlib3.TelnetReader) -> bytes:
-        data = b''
-        while True:
-            receiv = await reader.readuntil(b'|||||')
-            # print(receiv)
-            if receiv == b'|||||':
-                return data
-            data += receiv.removesuffix(b'|||||').replace(b'\xff\xff', b'\xff')
+        
+        # Receive data_len
+        data_len = await reader.readuntil()
+        data_len = int(data_len)
+
+        # Receive data
+        data = await reader.readexactly(data_len)
+        return data
