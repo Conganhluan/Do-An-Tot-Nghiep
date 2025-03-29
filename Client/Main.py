@@ -2,12 +2,12 @@ import threading
 from Thread.Listener import listener_thread
 from Thread.Controller import controller_thread
 from Thread.Commander import commander_thread
-from Thread.Worker.Manager import Manager
+from Thread.Worker.Manager import Manager, DATASET
 import os
 
 def main():
 
-    manager : Manager = Manager()
+    manager : Manager = Manager(DATASET.MNIST)
     os.system('cls')
 
     # Create a server listening and return needed information

@@ -4,6 +4,16 @@ from Thread.Worker.Trainer import Trainer
 from Thread.Worker.BaseModel import *
 import random
 
+class DATASET:
+    class MNIST:
+        pass
+    class FashionMNIST:
+        pass
+    class CIFAR10:
+        pass
+    class CIFAR100:
+        pass
+
 class Client_info:
 
     def __init__(self, round_ID: int, host: str, port: int, DH_public_key: int):
@@ -85,7 +95,7 @@ class Manager:
             # Used to start training
             pass
 
-    def __init__(self):
+    def __init__(self, dataset_type: type):
         # FL parameters
             # Communication
         self.host = "localhost"
@@ -99,6 +109,7 @@ class Manager:
         self.abort_message = ""
             # Trainer
         self.trainer = None
+        self.dataset_type = dataset_type.__name__
             # Signer
         self.signer = Signer()
 
@@ -124,7 +135,7 @@ class Manager:
         self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port)
         self.commiter = commiter
         self.accuracy = accuracy
-        self.trainer = Trainer(model_type)
+        self.trainer = Trainer(model_type, self.dataset_type)
 
     def set_round_information(self, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
         self.round_number = round_number
