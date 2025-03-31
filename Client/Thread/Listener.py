@@ -1,4 +1,4 @@
-import asyncio, telnetlib3, struct
+import asyncio, telnetlib3, struct, numpy
 from Thread.Worker.Manager import Manager, Client_info
 from Thread.Worker.Helper import Helper
 
@@ -42,12 +42,12 @@ def listener_thread(manager: Manager):
 
             # ROUND_INFO <round_number> <client_round_ID> <neighbor_num>
             round_number, self_round_ID, neighbor_num = data[11:].split(b' ', 2)
-            self_round_ID, neighbor_num = int(self_round_ID), int(neighbor_num)
+            round_number, self_round_ID, neighbor_num = int(round_number), int(self_round_ID), int(neighbor_num)
             
             # <base_model_commit/previous_global_model_commit>
             data = await Helper.receive_data(reader)
-            manager.set_last_commit([struct.unpack('Q', data[idx:idx+8])[0] for idx in range(0, len(data), 8)])
-            print("Confirm to get the model commit from the Trusted party")
+            manager.set_last_commit(numpy.frombuffer(data, dtype=numpy.int64))
+            # print("Confirm to get the model commit from the Trusted party")
 
             neighbor_list = list()
             for _ in range(neighbor_num):
@@ -75,19 +75,26 @@ def listener_thread(manager: Manager):
 
             # <global_model_parameters>
             data = await Helper.receive_data(reader)
-            global_parameters = [struct.unpack('d', data[idx: idx+8])[0] for idx in range(0, len(data), 8)]
-            if manager.round_number != 0:
-                for idx in range(len(global_parameters)):
-                    global_parameters[idx] /= manager.accuracy
+            
+            # print(f"Get global parameters for the round {manager.round_number}")
+            if manager.round_number == 0:
+                global_parameters = numpy.frombuffer(data, dtype=numpy.float32)
+            else:
+                global_parameters = numpy.frombuffer(data, dtype=numpy.int64)
+
             if not manager.commiter.check_commit(global_parameters, manager.last_commit):
                 manager.abort("The global parameter received from Aggregator is not equal to commitment from the Trusted party")
             else:
-                manager.trainer.load_parameters(global_parameters)
+                if manager.round_number == 0:
+                    manager.trainer.load_parameters(global_parameters)
+                else:
+                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters))
 
-            # SUCCESS
-            await Helper.send_data(writer, "SUCCESS")
-            print("Successfully receive global model from the Aggregator")
-            manager.set_flag(manager.FLAG.TRAIN)
+                # SUCCESS
+                await Helper.send_data(writer, "SUCCESS")
+                print("Successfully receive global model from the Aggregator")
+                manager.set_flag(manager.FLAG.TRAIN)
+            
             writer.close()
 
         # Client sends secret points to its neighbors

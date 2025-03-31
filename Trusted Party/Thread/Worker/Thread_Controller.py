@@ -71,7 +71,7 @@ async def send_ROUND_INFO_client_each(manager: Manager, client: Client_info):
     await Helper.send_data(writer, data)
 
     # <base_model_commit/previous_global_model_commit>
-    data = b''.join([struct.pack('Q', param) for param in manager.last_commitment])
+    data = manager.last_commitment.tobytes()
     await Helper.send_data(writer, data)
 
     for neighbor_info in manager.round_manager.get_neighbor_information(client.ID):

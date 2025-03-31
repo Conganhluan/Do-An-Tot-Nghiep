@@ -1,6 +1,6 @@
 from Thread.Worker.Helper import Helper
 from Thread.Worker.BaseModel import *           # This can be removed
-import random
+import random, numpy
 from sympy import randprime, primitive_root
 from copy import deepcopy
 
@@ -74,8 +74,8 @@ class Manager():
             # Public parameters
         self.commiter = Commiter()
         self.current_round = 0
-        self.last_commitment = None
-        self.accuracy = 2 ** (random.randint(10, 15))
+        self.last_commitment: numpy.ndarray[numpy.int64] = None
+        self.gs_mask = random.randint(1, 2 ** 64)
             # Controller
         self.flag = self.FLAG.NONE
         self.stop_message = ""
@@ -108,7 +108,7 @@ class Manager():
     def register_aggregator(self, host: str, port: int, base_model_class: type):
         self.aggregator_info = Aggregator_info(host, port, base_model_class)
 
-    def set_last_model_commitment(self, model_commitment: list):
+    def set_last_model_commitment(self, model_commitment: numpy.ndarray[numpy.int64]):
         self.last_commitment = model_commitment
 
     def __get_client_by_ID__(self, client_ID: int) -> Client_info | None:

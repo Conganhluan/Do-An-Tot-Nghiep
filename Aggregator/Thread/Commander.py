@@ -37,5 +37,9 @@ def commander_thread(manager: Manager):
         elif command == 'restart':
             os.execv(sys.executable, ['python'] + sys.argv)
 
+        elif command[:5] == 'abort':
+            manager.abort_message == command[6:]
+            manager.set_flag(manager.FLAG.ABORT)
+
         else:
-            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart]")
+            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>]")

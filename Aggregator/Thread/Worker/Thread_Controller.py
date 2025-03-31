@@ -15,19 +15,19 @@ async def send_AGG_REGIS(manager: Manager):
     # AGG_REGIS <aggregator_host> <aggregator_port> <base_model_class>
     data = f'AGG_REGIS {manager.host} {manager.port} '.encode() + pickle.dumps(manager.model_type)
     await Helper.send_data(writer, data)
-    print(f"Send self registration to the Trusted party...")
+    # print(f"Send self registration to the Trusted party...")
     
     # <commiter>
     data = await Helper.receive_data(reader)
     commiter = Commiter(tuple([int(param) for param in data.split(b' ')]))
     manager.set_commiter(commiter)
     manager.commiter.gen_new_secret()
-    print(f"Confirm to get the commiter from the Trusted party")
+    # print(f"Confirm to get the commiter from the Trusted party")
 
     # <base_model_commit>
-    data = b''.join([struct.pack('Q', param) for param in manager.get_model_commit()])
+    data = manager.get_model_commit().tobytes()
     await Helper.send_data(writer, data)
-    print(f"Send base model commitment to the Trusted party...")
+    # print(f"Send base model commitment to the Trusted party...")
 
     # SUCCESS
     data = await Helper.receive_data(reader)
@@ -54,7 +54,7 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     await Helper.send_data(writer, data)
 
     # <global_model_parameters>
-    data = b''.join(struct.pack('d', param) for param in manager.get_model_parameters())
+    data = manager.get_model_parameters().tobytes()
     await Helper.send_data(writer, data)
 
     # SUCCESS
@@ -86,5 +86,5 @@ async def send_ABORT(message: str):
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
     # ABORT <message>
-    await Helper.send_data(writer, message)
+    await Helper.send_data(writer, "ABORT " + message)
     writer.close()  

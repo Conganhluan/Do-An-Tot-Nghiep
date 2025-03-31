@@ -29,8 +29,7 @@ Each component has 3 threads: Commander, Controller and Listener
 
 - File `Aggregator/Thread/Worker/BaseModel.py` contains definitions of ML model, which can be used in this FL architecture
 - To change the used model, please change the model type at `Aggregator/Main.py`, line 11
-- The used model definition then can be transferred from the Aggregator > the Trusted party > Client(s) during registration processes
-- The file `Client/Thread/Worker/BaseModel.py` is used to support developing process only, it has no practical use at all. It is possible to remove this file and line 2 of file `Client/Thread/Worker/Manager.py`
+- The used model then can be transferred from the Aggregator > the Trusted party > Client(s) during registration processes
 
 # Communication
 
@@ -51,7 +50,7 @@ Aggregator  >>> <base_model_commit>                                             
 2. Client registers itself with Trusted Party
 ```
 Client      >>> CLIENT <client_host> <client_port> <client RSA_public_key>                  # RSA_public_key: (e,d)
-3rd Trusted >>> <aggregator_host> <aggregator_port> <accuracy> <commiter>
+3rd Trusted >>> <aggregator_host> <aggregator_port> <gs_mask> <commiter>
             >>> <base_model_class>
 Client      >>> SUCCESS
 ```
@@ -96,7 +95,8 @@ Other Client>>> SUCCESS
 
 8. Client sends local state dict to Aggregator
 ```
-Client      >>> LOCAL_MODEL <local_model_state_dict> <signature> <data_number> <signature>
+Client      >>> LOCAL_MODEL <data_number> <signature> <signature>
+            >>> <local_model_state_dict> 
 Aggregator  >>> SUCCESS
 ```
 

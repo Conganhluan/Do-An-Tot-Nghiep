@@ -1,4 +1,4 @@
-import torch
+import torch, numpy
 from torch.utils.data import DataLoader, TensorDataset, Subset
 import torch.nn.functional as F
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
@@ -15,6 +15,7 @@ class Trainer:
         self.batch_size = 64
         self.epoch_num = 3
         self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
+        self.get_parameters()
 
 
     def set_dataset_ID(self, ID: int):
@@ -25,19 +26,17 @@ class Trainer:
         self.root_dataset : type = getattr(torchvision.datasets, self.dataset_type)
         self.root_train_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=True, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
         self.root_test_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=False, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
-        print(f"Total number of train data: {len(self.root_train_data)}")
             # Self dataset
         self.data_num = self.root_train_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
-        print(f"Data number that I will have {self.data_num}")
         self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
         self.self_test_data = Subset(self.root_test_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
 
-    def load_parameters(self, parameters: list):
+    def load_parameters(self, parameters: numpy.ndarray[numpy.float32]):
         tensor = torch.tensor(parameters, requires_grad=True)
         vector_to_parameters(tensor, self.local_model._parameters)
 
-    def get_parameters(self) -> list:
-        return parameters_to_vector(self.local_model.parameters()).detach().numpy().tolist()
+    def get_parameters(self) -> numpy.ndarray[numpy.float32]:
+        return parameters_to_vector(self.local_model.parameters()).detach().numpy()
 
     def __get_data__(self, data: Subset) -> TensorDataset:
         
@@ -62,7 +61,7 @@ class Trainer:
     @Helper.timing
     def train(self, data_loader: DataLoader):
         
-        for data, target in tqdm(data_loader, unit="batch", leave=False):
+        for data, target in tqdm(data_loader, unit=" data", leave=False):
             self.optimizer.zero_grad()
             output = self.local_model(data)
             loss = F.nll_loss(output, target)
@@ -75,7 +74,7 @@ class Trainer:
         test_loss = 0
         correct = 0
 
-        for data, target in tqdm(data_loader, unit="batch", leave=False):
+        for data, target in tqdm(data_loader, unit=" data", leave=False):
             output = self.local_model(data)
             test_loss += F.nll_loss(output, target, reduction="sum").item()
             pred = output.data.max(1, keepdim = True)[1]

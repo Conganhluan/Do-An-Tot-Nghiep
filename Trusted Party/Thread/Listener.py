@@ -1,4 +1,4 @@
-import asyncio, telnetlib3, time, dill as pickle, struct
+import asyncio, telnetlib3, time, dill as pickle, struct, numpy
 from Thread.Worker.Manager import Manager, RSA_public_key
 from Thread.Worker.Helper import Helper
 
@@ -26,17 +26,17 @@ def listener_thread(manager: Manager):
             port = int(port)
             base_model_class = pickle.loads(base_model_class)
             manager.register_aggregator(host, port, base_model_class)
-            print(f"Confirm to get registration from the Aggregator {host}:{port}")
+            # print(f"Confirm to get registration from the Aggregator {host}:{port}")
 
             # <commiter>
             data = f"{manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
             await Helper.send_data(writer, data)
-            print(f"Send commiter to the Aggregator...")
+            # print(f"Send commiter to the Aggregator...")
 
             # <base_model_commit> 
             data = await Helper.receive_data(reader)
-            manager.set_last_model_commitment([struct.unpack('Q', data[idx:idx+8])[0] for idx in range(0, len(data), 8)])
-            print(f"Confirm to get the model commitment from the Aggregator")
+            manager.set_last_model_commitment(numpy.frombuffer(data, dtype=numpy.int64))
+            # print(f"Confirm to get the model commitment from the Aggregator")
 
             # SUCCESS
             await Helper.send_data(writer, "SUCCESS")
@@ -54,8 +54,8 @@ def listener_thread(manager: Manager):
             manager.add_client(id, host, port, RSA_public_key(e, n))
             # print(f"Confirm to get registration from Client {id} - {host}:{port}")
 
-            # <aggregator_host> <aggregator_port> <accuracy> <commiter>
-            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.accuracy} {manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
+            # <aggregator_host> <aggregator_port> <gs_mask> <commiter>
+            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.gs_mask} {manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
             await Helper.send_data(writer, data)
             
             # <base_model_class>

@@ -1,5 +1,7 @@
 from Thread.Worker.Helper import Helper
+from Thread.Worker import Mask_Module
 from random import randint
+import numpy
 
 class Masker:
     
@@ -11,19 +13,22 @@ class Masker:
     def get_DH_public_key(self) -> int:
         return Helper.exponent_modulo(self.g, self.ps, self.q)
 
-    def get_PRNG_ss(self, num_bytes: int = 32) -> int:
-        return Helper.PRNG(self.ss, num_bytes)
+    def get_PRNG_ss(self) -> int:
+        return Helper.PRNG(self.ss, 8)
     
-    def get_PRNG_ps(self, self_ID: int, neighbor_ps: list[tuple[int, int]], num_bytes: int = 32) -> int:
-        total = 0
+    def get_PRNG_ps(self, self_ID: int, neighbor_ps: list[tuple[int, int]]) -> int:
+        total = 0.0
         for neighbor_ID, neighbor_public_key in neighbor_ps:
             if neighbor_ID > self_ID:
-                total += Helper.exponent_modulo(neighbor_public_key, self.ps, self.q)
+                total += Helper.PRNG(Helper.exponent_modulo(neighbor_public_key, self.ps, self.q), 7)
             elif neighbor_ID < self.ID:
-                total -= Helper.exponent_modulo(neighbor_public_key, self.ps, self.q)
+                total -= Helper.PRNG(Helper.exponent_modulo(neighbor_public_key, self.ps, self.q), 7)
             else:
                 raise Exception("There is something wrong here!")
-        return Helper.PRNG(total, num_bytes)
+        return total
+    
+    def get_PRNG_gs(self, global_mask) -> int:
+        return Helper.PRNG(global_mask, 4)
 
     def __share_secret__(self, secret: int, neighbor_num: int, share_limit: int, coeff_limit: int) -> list[tuple[int, int]]:
         """
@@ -70,3 +75,12 @@ class Masker:
     def share_ps(self, neighbor_num: int, share_limit: int = 0, coeff_limit: int = 5) -> list[tuple[int, int]]:
         return self.__share_secret__(self.ps, neighbor_num, share_limit, coeff_limit)
     
+    def mask_params(self, params: numpy.ndarray[numpy.float32], global_mask: int) -> numpy.ndarray[numpy.int64]:
+        masked_params = numpy.zeros((len(params), ), dtype=numpy.int64)
+        Mask_Module.get_masked(params, masked_params, self.get_PRNG_ss(), self.get_PRNG_ps(), self.get_PRNG_gs())
+        return masked_params
+    
+    def unmask_params(self, masked_params: numpy.ndarray[numpy.int64], global_mask: int) -> numpy.ndarray[numpy.float32]:
+        unmasked_params = numpy.zeros((len(masked_params), ), dtype=numpy.float32)
+        Mask_Module.get_unmasked(masked_params, unmasked_params, self.get_PRNG_ps())
+        return unmasked_params

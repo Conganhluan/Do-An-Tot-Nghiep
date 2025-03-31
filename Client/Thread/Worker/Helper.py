@@ -29,11 +29,11 @@ class Helper:
         return result
     
     @staticmethod
-    def PRNG(seed: int, num_bytes: int):
+    def PRNG(seed: int, num_bytes: int) -> int:
         key = sha256(str(seed).encode()).digest()[:16]
         cipher = AES.new(key, AES.MODE_CTR, nonce = key[:12])
         random_bytes = cipher.encrypt(b'\x00' * num_bytes)
-        return int.from_bytes(random_bytes, "big")
+        return int.from_bytes(random_bytes, "big", signed=True)
     
     @staticmethod
     def get_env_variable(name: str) -> int | str:

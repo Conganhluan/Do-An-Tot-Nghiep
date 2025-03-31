@@ -1,5 +1,5 @@
 from Thread.Worker.BaseModel import *
-import random
+import random, numpy
 from Thread.Worker.Helper import Helper
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
@@ -43,10 +43,10 @@ class Commiter:
     def get_secret(self) -> int:
         return self.r
 
-    def commit(self, data) -> int:
+    def commit(self, data) -> numpy.int64:
         assert self.r
         data = int(data)
-        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+        return Helper.PRNG((Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p, 8)
 
 class Manager:
 
@@ -103,17 +103,18 @@ class Manager:
     def set_round_information(self, client_list: list[Client_info]):
         self.client_list = client_list
 
-    def get_model_parameters(self) -> list:
-        return parameters_to_vector(self.global_model.parameters()).detach().numpy().tolist()
+    def get_model_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
+        return parameters_to_vector(self.global_model.parameters()).detach().numpy()
 
     def set_commiter(self, commiter: Commiter) -> None:
         self.commiter = commiter
 
-    def get_model_commit(self) -> list:
-        arr : list = self.get_model_parameters()
-        for idx in range(len(arr)):
-            arr[idx] = self.commiter.commit(int(arr[idx]))
-        return arr
+    def get_model_commit(self) -> numpy.ndarray[numpy.int64]:
+        param_arr = self.get_model_parameters()
+        commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.int64)
+        for idx in range(len(param_arr)):
+            commit_arr[idx] = self.commiter.commit(param_arr[idx])
+        return commit_arr
     
     def abort(self, message: str):
         self.abort_message = message

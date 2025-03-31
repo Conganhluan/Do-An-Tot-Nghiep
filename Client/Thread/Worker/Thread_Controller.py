@@ -15,17 +15,17 @@ async def send_CLIENT(manager: Manager):
     data = f'CLIENT {manager.host} {manager.port} {manager.signer.e} {manager.signer.n}'
     await Helper.send_data(writer, data)
     
-    # <aggregator_host> <aggregator_port> <accuracy> <commiter>
+    # <aggregator_host> <aggregator_port> <gs_mask> <commiter>
     data = await Helper.receive_data(reader)
-    host, port, accuracy, p, h, k = data.split(b' ', 5)
+    host, port, gs_mask, p, h, k = data.split(b' ', 5)
     host = host.decode()
-    port, accuracy = int(port), int(accuracy)
+    port, gs_mask = int(port), int(gs_mask)
     commiter = Commiter(tuple([int(param) for param in [p, h, k]]))
 
     # <base_model_class>
     data = await Helper.receive_data(reader)
     base_model_class = pickle.loads(data)
-    manager.set_FL_public_params(host, port, commiter, accuracy, base_model_class)
+    manager.set_FL_public_params(host, port, commiter, gs_mask, base_model_class)
 
     # SUCCESS
     await Helper.send_data(writer, "SUCCESS")
@@ -45,7 +45,7 @@ async def send_ABORT(message: str):
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
     # ABORT <message>
-    await Helper.send_data(writer, message)
+    await Helper.send_data(writer, "ABORT " + message)
     writer.close()
 
 

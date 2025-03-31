@@ -25,7 +25,7 @@ def commander_thread(manager: Manager):
                 print(f"There is no aggregator registered")
             print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}")
             print(f'Current round number: {manager.current_round}')
-            print(f"Accuracy: {manager.accuracy}")
+            print(f"GS mask: {manager.gs_mask}")
             
         elif command == 'init round':
             manager.set_flag(manager.FLAG.START_ROUND)

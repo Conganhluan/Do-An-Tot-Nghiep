@@ -2,7 +2,7 @@ from Thread.Worker.Helper import Helper
 from Thread.Worker.Masker import Masker
 from Thread.Worker.Trainer import Trainer
 from Thread.Worker.BaseModel import *
-import random
+import random, numpy
 
 class Client_info:
 
@@ -31,15 +31,17 @@ class Commiter:
         self.k = params[2]
         self.r = None
 
-    def commit(self, data) -> int:
+    def commit(self, data) -> numpy.int64:
         assert self.r
         data = int(data)
-        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+        return Helper.PRNG((Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p, 8)
 
-    @Helper.timing
-    def check_commit(self, data: list, commit: list) -> bool:
+    def check_commit(self, data: numpy.ndarray[numpy.float32 | numpy.int64], commit: numpy.ndarray[numpy.int64]) -> bool:
         assert self.r
-        assert len(data) == len(commit)
+        if len(data) != len(commit):
+            print(f"Model parameters length: {len(data)}, type {type(data[0])}")
+            print(f"Model commmit lenght: {len(commit)}, type {type(commit[0])}")
+            return False
         return all(self.commit(data[idx]) == commit[idx] for idx in range(len(data)))
 
     def set_secret(self, r: int):
@@ -93,7 +95,7 @@ class Manager:
         self.aggregator_info = None
             # Public parameters
         self.commiter = None
-        self.accuracy = 1
+        self.gs_mask = 1
             # Controller
         self.flag = self.FLAG.NONE
         self.abort_message = ""
@@ -120,10 +122,10 @@ class Manager:
         self.flag = flag
         print(f"Set flag to {self.flag.__name__}")
 
-    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, commiter: Commiter, accuracy: int, model_type: type):
+    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, commiter: Commiter, gs_mask: int, model_type: type):
         self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port)
         self.commiter = commiter
-        self.accuracy = accuracy
+        self.gs_mask = gs_mask
         self.trainer = Trainer(model_type)
 
     def set_round_information(self, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
@@ -134,7 +136,7 @@ class Manager:
     def set_masker(self, g: int, q: int):
         self.masker = Masker(g, q)
     
-    def set_last_commit(self, commit: list):
+    def set_last_commit(self, commit: numpy.ndarray[numpy.int64]):
         self.last_commit = commit
 
     def abort(self, message: str):
@@ -145,22 +147,13 @@ class Manager:
         self.trainer.set_dataset_ID(self.round_ID)
         self.trainer.train_model()
 
-    def get_masked_model(self) -> list:
-        ss_masking = self.masker.get_PRNG_ss()
-        ps_masking = self.masker.get_PRNG_ps(self.round_ID, [(neighbor.round_ID, neighbor.DH_public_key) for neighbor in self.neighbor_list])
-        total_masking = ss_masking + ps_masking
-        local_parameters = self.trainer.get_parameters()
-        for idx in range(len(local_parameters)):
-            local_parameters[idx] = local_parameters[idx] + total_masking
-        return local_parameters
+    def get_masked_model(self) -> numpy.ndarray[numpy.int64]:
+        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask)
     
     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
         ss_points = self.masker.share_ss(len(self.neighbor_list))
         ps_points = self.masker.share_ps(len(self.neighbor_list))
         return zip(ss_points, ps_points)
-    
-    def get_send_model(self, parameters: list) -> list:
-        return [round(param*self.accuracy*self.trainer.data_num) for param in parameters]
     
     def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
         for neighbor in self.neighbor_list:
@@ -168,3 +161,6 @@ class Manager:
                 neighbor.ss_point = ss_point
                 neighbor.ps_point = ps_point
                 return
+            
+    def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64]) -> numpy.ndarray[numpy.float32]:
+        return self.masker.unmask_params(masked_parameters, self.gs_mask)
