@@ -13,7 +13,7 @@ def listener_thread(manager: Manager):
         # Aggregator/Client aborts the process due to abnormal activities
         if b'STOP' == data[:4]:
 
-            verification_round_number, message = data[5:].split(b' ', 2)
+            verification_round_number, message = data[5:].split(b' ', 1)
             if int(verification_round_number) != manager.round_number:
                 manager.abort("Get the STOP signal with wrong round number")
             else:
@@ -50,8 +50,8 @@ def listener_thread(manager: Manager):
         elif b'LOCAL_MODEL' == data[:11]:
             
             # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
-            round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
-            round_ID, data_number, data_num_signature, parameters_signature = int(round_ID), int(data_number), int(data_num_signature), int(parameters_signature)
+            client_round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
+            client_round_ID, data_number, data_num_signature, parameters_signature = int(client_round_ID), int(data_number), int(data_num_signature), int(parameters_signature)
             # print(f"Get local model information from client {round_ID}")
 
             # <local_model_parameters>
@@ -61,20 +61,28 @@ def listener_thread(manager: Manager):
             
             if not manager.timeout:
 
-                manager.receive_trained_data(round_ID, data_number, data_num_signature, parameters_signature, local_model_parameters)
-                receipt: Receipt = manager.get_receipt(round_ID)
+                client = manager.get_client_by_ID(client_round_ID)
+                
+                if not client.check_signature(data_number, data_num_signature):
+                    manager.abort(f"The signature of data number from client {client.round_ID} is wrong")
+                elif not client.check_signature(int.from_bytes(data), parameters_signature):
+                    manager.abort(f"The signature of local model parameters from client {client.round_ID} is wrong")
+                
+                else:
+                    manager.receive_trained_data(client, data_number, data_num_signature, parameters_signature, local_model_parameters)
+                    receipt: Receipt = manager.get_receipt(client)
 
-                # SUCCESS <received_time> <signed_received_data>
-                data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
-                await Helper.send_data(writer, data)
-                print(f"Successfully receive local model parameters of client {round_ID}")
+                    # SUCCESS <received_time> <signed_received_data>
+                    data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
+                    await Helper.send_data(writer, data)
+                    print(f"Successfully receive local model parameters of client {client_round_ID}")
 
             else:
 
                 # OUT_OF_TIME <end_time>
                 data = f"OUT_OF_TIME {manager.timeout_time}"
                 await Helper.send_data(writer, data)
-                print(f"Client {round_ID} has been late for the timeout of {manager.timeout_time}!")
+                print(f"Client {client_round_ID} has been late for the timeout of {manager.timeout_time}!")
 
         else:
             await Helper.send_data(writer, "Operation not allowed!")

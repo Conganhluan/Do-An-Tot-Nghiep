@@ -16,6 +16,11 @@ class Client_info:
         # Secret sharing
         self.ss_point : tuple[int, int] = None
         self.ps_point : tuple[int, int] = None
+        self.is_online = None
+
+    def set_secret_points(self, ss_point: tuple, ps_point: tuple) -> None:
+        self.ss_point = ss_point
+        self.ps_point = ps_point
 
 class Commiter:
 
@@ -68,7 +73,7 @@ class Signer:
 
     def __init__(self):
         RSA_key_list = open("Thread/Worker/Data/RSA_keys.csv", "r", encoding='UTF-8').readlines()[1:]
-        chosen_RSA_key = RSA_key_list[random.randint(0,99)].split(', ')
+        chosen_RSA_key = RSA_key_list[random.randint(0,98)].split(', ')
         self.d = int(chosen_RSA_key[1])
         self.e = int(chosen_RSA_key[2])
         self.n = int(chosen_RSA_key[3])
@@ -171,11 +176,7 @@ class Manager:
         return zip(ss_points, ps_points)
     
     def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
-        for neighbor in self.neighbor_list:
-            if neighbor.round_ID == neighbor_ID:
-                neighbor.ss_point = ss_point
-                neighbor.ps_point = ps_point
-                return
+        self.get_neighbor_by_ID(neighbor_ID).set_secret_points(ss_point, ps_point)
             
     def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64]) -> numpy.ndarray[numpy.float32]:
         return self.masker.unmask_params(masked_parameters, self.gs_mask)
@@ -191,3 +192,9 @@ class Manager:
 
     def check_recept(self) -> bool:
         return self.receipt.check_receipt(self.trainer.data_num, self.get_masked_model(), self.aggregator_info.RSA_public_key)
+    
+    def get_neighbor_by_ID(self, neighbor_ID: int) -> Client_info | None:
+        for neighbor in self.neighbor_list:
+            if neighbor.round_ID == neighbor_ID:
+                return neighbor
+        return None

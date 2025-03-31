@@ -58,11 +58,14 @@ def commander_thread(manager: Manager):
         elif command == "cancel timer":
             manager.timer.cancel()
             manager.end_timer()
-            print("Timer stopped!")
 
         elif command == 'client status':
             for client in manager.client_list:
                 print(f"Client {client.round_ID} -> {"Online" if client.is_online else "Offline"}")
 
+        elif command == 'secret points':
+            for client in manager.client_list:
+                print(f"Client {client.round_ID}: {', '.join([f"({point.x}, {point.y})" for point in client.secret_points])}")
+
         else:
-            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>, local models, timeout status, cancel timer, client status]")
+            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>, local models, timeout status, cancel timer, client status, secret points]")

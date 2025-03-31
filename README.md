@@ -103,8 +103,10 @@ Aggregator  >>> SUCCESS <received_time> <signed_received_data>
 
 9. Aggregator gets secrets points from Clients
 ```
-Aggregator  >>> STATUS <neighbor_round_ID> <ON/OFF>
-Client      >>> <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
+Aggregator  >>> STATUS <neighbor_num>
+            In loop of <neighbor_num>:
+                >>> <neighbor_round_ID> <ON/OFF>
+Client          >>> <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
 Aggregator  >>> SUCCESS
 ```
 

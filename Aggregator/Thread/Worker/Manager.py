@@ -27,7 +27,16 @@ class Signer:
 
     def sign(self, data: int) -> int:
         return Helper.exponent_modulo(data, self.d, self.n)
-    
+
+class Secret_Point:
+
+    def __init__(self, x: int, y: int, x_signed: int, y_signed: int, neighbor_ID: int):
+        self.x = x
+        self.y = y
+        self.x_signed = x_signed
+        self.y_signed = y_signed
+        self.neighbor_ID = neighbor_ID
+
 class Client_info:
 
     def __init__(self, round_ID: int, host: str, port: int, RSA_public_key: RSA_public_key, DH_public_key: int, neighbor_list: list):
@@ -46,7 +55,7 @@ class Client_info:
         self.signed_parameters : int = 0
         self.local_datanum : int = 0
         self.signed_datanum : int = 0
-        self.secret_points = None
+        self.secret_points = list()
         self.receipt = None
     
     def set_trained_data(self, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
@@ -59,6 +68,12 @@ class Client_info:
         received_time = time.time()
         received_data = int.from_bytes(struct.pack('f', received_time) + self.local_datanum.to_bytes(5) + self.local_parameters.tobytes())
         self.receipt = Receipt(received_time, signer.sign(received_data))
+
+    def add_secret_points(self, x: int, y: int, x_signed: int, y_signed: int, neighbor_ID: int) -> None:
+        self.secret_points.append(Secret_Point(x, y, x_signed, y_signed, neighbor_ID))
+
+    def check_signature(self, data: int, signature: int) -> None:
+        return Helper.exponent_modulo(signature, self.RSA_public_key.e, self.RSA_public_key.n) == data % self.RSA_public_key.n
 
 class Commiter:
 
@@ -96,6 +111,9 @@ class Manager:
             pass
         class STOP:
             # Used to stop processing
+            pass
+        class AGGREGATE:
+            # Used to indicate that not to receive any local model from clients
             pass
 
     def __init__(self, model_type: type):
@@ -154,22 +172,23 @@ class Manager:
         self.abort_message = message
         self.set_flag(self.FLAG.ABORT)
 
-    def receive_trained_data(self, client_ID: int, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+    def get_client_by_ID(self, client_ID: int) -> Client_info:
         for client in self.client_list:
             if client.round_ID == client_ID:
-                client.is_online = True
-                client.set_trained_data(data_number, signed_data_number, signed_parameters, parameters)
-                client.create_receipt(self.signer)
-                return
+                return client
 
-    def get_receipt(self, client_ID: int) -> Receipt:
-        for client in self.client_list:
-            if client.round_ID == client_ID:
-                return client.receipt
+    def receive_trained_data(self, client: Client_info, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+        client.is_online = True
+        client.set_trained_data(data_number, signed_data_number, signed_parameters, parameters)
+        client.create_receipt(self.signer)
+
+    def get_receipt(self, client: Client_info) -> Receipt:
+        return client.receipt
 
     def end_timer(self):
         self.timeout = True
         self.timeout_time = time.time()
+        self.set_flag(self.FLAG.AGGREGATE)
 
     def start_timer(self, timeout_seconds: int = 60):
         self.timeout = False

@@ -7,6 +7,9 @@ from Thread.Worker.Manager import Manager, Client_info, DH_params
 async def send_STOP(manager: Manager):
 
     # STOP <message>
+    if not manager.stop_message:
+        manager.stop_message = "No message specified"
+
     for client in manager.client_list:
         reader, writer = await asyncio.open_connection(client.host, client.port)
         _ = await reader.read(3)  # Remove first 3 bytes of Telnet command

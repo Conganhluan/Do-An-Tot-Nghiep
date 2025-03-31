@@ -13,7 +13,7 @@ def listener_thread(manager: Manager):
         # Aggregator/Client aborts the process due to abnormal activities
         if b'STOP' == data[:4]:
 
-            verification_round_number, message = data[6:].split(b' ', 2)
+            verification_round_number, message = data[5:].split(b' ', 1)
             if int(verification_round_number) != manager.round_number:
                 manager.abort("Get the STOP signal with wrong round number")
             else:
@@ -108,6 +108,44 @@ def listener_thread(manager: Manager):
             # SUCCESS
             await Helper.send_data(writer, "SUCCESS")
             print(f"Successfully receive secret points from client {neighbor_round_ID}")
+            writer.close()
+
+        # Aggregator gets secrets points from Clients
+        elif b'STATUS' == data[:6]:
+
+            # STATUS <neighbor_num>
+            neighbor_num = int(data[7:])
+
+            for idx in range(neighbor_num):
+                
+                # <neighbor_round_ID> <ON/OFF>
+                receiv_data = await Helper.receive_data(reader)
+                neighbor_ID, neighbor_status = receiv_data.split(b' ')
+                neighbor = manager.get_neighbor_by_ID(int(neighbor_ID))
+                
+                if neighbor == None:
+                    manager.abort(f"Aggregator tries to get secret points of unknown client {neighbor_ID}")
+                
+                elif not neighbor.is_online == None:
+                    manager.abort(f"Aggregator tries to get neighbor {neighbor.round_ID} secret points twice")
+
+                # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
+                elif neighbor_status == b'ON':
+                    neighbor.is_online = True
+                    sent_data = f"{neighbor.ss_point[0]} {manager.signer.sign(neighbor.ss_point[0])} {neighbor.ss_point[1]} {manager.signer.sign(neighbor.ss_point[1])}"
+                    print(f"Aggregator said neighbor {neighbor.round_ID} is online")
+                elif neighbor_status == b'OFF':
+                    neighbor.is_online = False
+                    sent_data = f"{neighbor.ps_point[0]} {manager.signer.sign(neighbor.ps_point[0])} {neighbor.ps_point[1]} {manager.signer.sign(neighbor.ps_point[1])}"
+                    print(f"Aggregator said neighbor {neighbor.round_ID} is offline")
+                await Helper.send_data(writer, sent_data)
+
+            # SUCCESS
+            data = await Helper.receive_data(reader)
+            if data == b"SUCCESS":
+                print("Successfully send neighbor secret points to the Aggregator")
+            else:
+                print(f"Aggregator returns {data}")
             writer.close()
 
         else:

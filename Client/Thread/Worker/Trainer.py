@@ -17,7 +17,6 @@ class Trainer:
         self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
         self.get_parameters()
 
-
     def set_dataset_ID(self, ID: int):
         self.ID = ID
 

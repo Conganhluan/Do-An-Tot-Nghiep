@@ -79,6 +79,56 @@ async def send_GLOB_MODEL(manager: Manager):
 
 
 
+# Aggregator gets secrets points from Clients
+async def send_STATUS_each(manager: Manager, client: Client_info, status_list: list[bool]):
+
+    reader, writer = await asyncio.open_connection(client.host, client.port)
+    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+
+    # STATUS <neighbor_num>
+    data = f"STATUS {len(client.neighbor_list)}"
+    await Helper.send_data(writer, data)
+
+    for neighbor_ID in client.neighbor_list:
+    
+        # <neighbor_round_ID> <ON/OFF>
+        sent_data = f"{neighbor_ID} {"ON" if status_list[neighbor_ID] else "OFF"}"
+        await Helper.send_data(writer, sent_data)
+        print(f"Send client {neighbor_ID} status to client {client.round_ID}")
+
+        # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
+        receiv_data = await Helper.receive_data(reader)
+        x_point, x_point_signature, y_point, y_point_signature = [int(number) for number in receiv_data.split(b' ')]
+        
+        if not client.check_signature(x_point, x_point_signature) or not client.check_signature(y_point, y_point_signature):
+            manager.abort(f"There is something wrong with the points from client {client.round_ID}")
+        else:
+            manager.get_client_by_ID(neighbor_ID).add_secret_points(x_point, y_point, x_point_signature, y_point_signature, client.round_ID)
+
+    # SUCCESS
+    await Helper.send_data(writer, "SUCCESS")
+    print(f"Successfully receive neighbor secret points from client {client.round_ID}")
+
+async def send_STATUS(manager: Manager):
+
+    status_list = list()
+    for i in range(len(manager.client_list)):
+        status_list.append((None, False))
+    for client in manager.client_list:
+        status_list[client.round_ID] = client.is_online
+
+    for client in manager.client_list:
+        asyncio.create_task(send_STATUS_each(manager, client, status_list))
+    all_remaining_tasks = asyncio.all_tasks()
+    all_remaining_tasks.remove(asyncio.current_task())
+    await asyncio.wait(all_remaining_tasks)
+
+
+
+###########################################################################################################
+
+
+
 # Aggregator/Client aborts the process due to abnormal activities
 async def send_ABORT(message: str):
 
