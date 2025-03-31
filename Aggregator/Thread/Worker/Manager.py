@@ -1,5 +1,5 @@
 from Thread.Worker.BaseModel import *
-import random, numpy, time, struct
+import random, numpy, time, struct, threading
 from Thread.Worker.Helper import Helper
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
@@ -41,7 +41,7 @@ class Client_info:
         self.neighbor_list = neighbor_list
 
         # After training
-        self.is_online = True
+        self.is_online = False
         self.local_parameters : numpy.ndarray[numpy.int64] = None
         self.signed_parameters : int = 0
         self.local_datanum : int = 0
@@ -110,6 +110,8 @@ class Manager:
             # Controller
         self.flag = Manager.FLAG.NONE
         self.abort_message = ""
+        self.timeout = True
+        self.timeout_time = 0
             # Aggregator
         self.global_model : CNNModel_MNIST = model_type()
         self.model_type = model_type
@@ -155,6 +157,7 @@ class Manager:
     def receive_trained_data(self, client_ID: int, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
         for client in self.client_list:
             if client.round_ID == client_ID:
+                client.is_online = True
                 client.set_trained_data(data_number, signed_data_number, signed_parameters, parameters)
                 client.create_receipt(self.signer)
                 return
@@ -163,3 +166,12 @@ class Manager:
         for client in self.client_list:
             if client.round_ID == client_ID:
                 return client.receipt
+
+    def end_timer(self):
+        self.timeout = True
+        self.timeout_time = time.time()
+
+    def start_timer(self, timeout_seconds: int = 60):
+        self.timeout = False
+        self.timer = threading.Timer(timeout_seconds, self.end_timer)
+        self.timer.start()

@@ -49,5 +49,20 @@ def commander_thread(manager: Manager):
                 print(f"Received time: {client.receipt.received_time}")
                 print(f"Signed received data: {client.receipt.signed_received_data}")
 
+        elif command == 'timeout status':
+            if manager.timeout:
+                print("Out of training time!")
+            else:
+                print("There is still time!")
+
+        elif command == "cancel timer":
+            manager.timer.cancel()
+            manager.end_timer()
+            print("Timer stopped!")
+
+        elif command == 'client status':
+            for client in manager.client_list:
+                print(f"Client {client.round_ID} -> {"Online" if client.is_online else "Offline"}")
+
         else:
-            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>, local models]")
+            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>, local models, timeout status, cancel timer, client status]")

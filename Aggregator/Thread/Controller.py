@@ -24,6 +24,7 @@ def controller_thread(manager: Manager):
         elif flag == manager.FLAG.START_ROUND:
 
             asyncio.run(send_GLOB_MODEL(manager))
+            manager.start_timer()
 
         elif flag == manager.FLAG.RE_REGISTER:
 

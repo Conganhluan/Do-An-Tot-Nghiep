@@ -1,4 +1,4 @@
-import asyncio, dill as pickle
+import asyncio, dill as pickle, time
 from Thread.Worker.Helper import Helper
 from Thread.Worker.Manager import Manager, Commiter, Client_info, RSA_public_key
 
@@ -117,6 +117,10 @@ async def send_LOCAL_MODEL(manager: Manager):
             manager.abort("The receipt from the Aggregator is incorrect!")
         else:
             print("Successfully receive receipt from the Aggregator")
+    
+    # OUT_OF_TIME <end_time>
+    elif data[:11] == b'OUT_OF_TIME':
+        print(f"Aggregator timer ends at {float(data[12:])}, it is {time.time()} now!")
 
     else:
         print(f"Trusted party returns {data}")

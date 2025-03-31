@@ -98,6 +98,7 @@ Other Client>>> SUCCESS
 Client      >>> LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
             >>> <local_model_parameters> 
 Aggregator  >>> SUCCESS <received_time> <signed_received_data>
+        or  >>> OUT_OF_TIME <end_time>
 ```
 
 9. Aggregator gets secrets points from Clients

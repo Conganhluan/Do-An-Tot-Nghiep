@@ -53,20 +53,28 @@ def listener_thread(manager: Manager):
             round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
             round_ID, data_number, data_num_signature, parameters_signature = int(round_ID), int(data_number), int(data_num_signature), int(parameters_signature)
             # print(f"Get local model information from client {round_ID}")
-            
+
             # <local_model_parameters>
             data: bytes = await Helper.receive_data(reader)
             local_model_parameters = numpy.frombuffer(data, dtype=numpy.int64)
             # print(f"Get local model parameters from client {round_ID}")
             
-            manager.receive_trained_data(round_ID, data_number, data_num_signature, parameters_signature, local_model_parameters)
-            receipt: Receipt = manager.get_receipt(round_ID)
-            # print(f"Send receipt to client {round_ID}")
+            if not manager.timeout:
 
-            # SUCCESS <received_time> <signed_received_data>
-            data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
-            await Helper.send_data(writer, data)
-            print(f"Successfully receive local model parameters of client {round_ID}")
+                manager.receive_trained_data(round_ID, data_number, data_num_signature, parameters_signature, local_model_parameters)
+                receipt: Receipt = manager.get_receipt(round_ID)
+
+                # SUCCESS <received_time> <signed_received_data>
+                data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
+                await Helper.send_data(writer, data)
+                print(f"Successfully receive local model parameters of client {round_ID}")
+
+            else:
+
+                # OUT_OF_TIME <end_time>
+                data = f"OUT_OF_TIME {manager.timeout_time}"
+                await Helper.send_data(writer, data)
+                print(f"Client {round_ID} has been late for the timeout of {manager.timeout_time}!")
 
         else:
             await Helper.send_data(writer, "Operation not allowed!")
