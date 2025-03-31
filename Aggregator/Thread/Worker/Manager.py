@@ -1,5 +1,5 @@
 from Thread.Worker.BaseModel import *
-import random, numpy
+import random, numpy, time, struct
 from Thread.Worker.Helper import Helper
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
@@ -9,6 +9,25 @@ class RSA_public_key:
         self.e = e
         self.n = n
 
+class Receipt:
+
+    def __init__(self, received_time: float, signed_received_data: int):
+        self.received_time = received_time
+        self.signed_received_data = signed_received_data
+
+class Signer:
+
+    def __init__(self):
+        self.d = 129357748760673500352691599801356668193
+        self.e = 65537
+        self.n = 141744169545699033667390251374615762519
+
+    def get_public_key(self):
+        return RSA_public_key(self.e, self.n)
+
+    def sign(self, data: int) -> int:
+        return Helper.exponent_modulo(data, self.d, self.n)
+    
 class Client_info:
 
     def __init__(self, round_ID: int, host: str, port: int, RSA_public_key: RSA_public_key, DH_public_key: int, neighbor_list: list):
@@ -23,11 +42,23 @@ class Client_info:
 
         # After training
         self.is_online = True
-        self.local_statedict = None
-        self.signed_statedict = None
-        self.local_datanum = 0
-        self.signed_datanum = 0
+        self.local_parameters : numpy.ndarray[numpy.int64] = None
+        self.signed_parameters : int = 0
+        self.local_datanum : int = 0
+        self.signed_datanum : int = 0
         self.secret_points = None
+        self.receipt = None
+    
+    def set_trained_data(self, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+        self.local_datanum = data_number
+        self.signed_datanum = signed_data_number
+        self.signed_parameters = signed_parameters
+        self.local_parameters = parameters
+
+    def create_receipt(self, signer: Signer):
+        received_time = time.time()
+        received_data = int.from_bytes(struct.pack('f', received_time) + self.local_datanum.to_bytes(5) + self.local_parameters.tobytes())
+        self.receipt = Receipt(received_time, signer.sign(received_data))
 
 class Commiter:
 
@@ -72,6 +103,7 @@ class Manager:
             # Communication
         self.host = "localhost"
         self.port = Helper.get_available_port()
+        self.signer = Signer()
             # Public parameters
         self.commiter = None
         self.round_number = 0
@@ -119,3 +151,15 @@ class Manager:
     def abort(self, message: str):
         self.abort_message = message
         self.set_flag(self.FLAG.ABORT)
+
+    def receive_trained_data(self, client_ID: int, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+        for client in self.client_list:
+            if client.round_ID == client_ID:
+                client.set_trained_data(data_number, signed_data_number, signed_parameters, parameters)
+                client.create_receipt(self.signer)
+                return
+
+    def get_receipt(self, client_ID: int) -> Receipt:
+        for client in self.client_list:
+            if client.round_ID == client_ID:
+                return client.receipt

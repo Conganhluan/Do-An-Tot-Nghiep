@@ -1,4 +1,4 @@
-import asyncio, dill as pickle, struct
+import asyncio, dill as pickle
 from Thread.Worker.Helper import Helper
 from Thread.Worker.Manager import Manager, Client_info, Commiter
 from Thread.Worker.BaseModel import *
@@ -12,8 +12,8 @@ async def send_AGG_REGIS(manager: Manager):
     reader, writer = await asyncio.open_connection(TRUSTED_PARTY_HOST, TRUSTED_PARTY_PORT)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
     
-    # AGG_REGIS <aggregator_host> <aggregator_port> <base_model_class>
-    data = f'AGG_REGIS {manager.host} {manager.port} '.encode() + pickle.dumps(manager.model_type)
+    # AGG_REGIS <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <base_model_class>
+    data = f'AGG_REGIS {manager.host} {manager.port} {manager.signer.e} {manager.signer.n} '.encode() + pickle.dumps(manager.model_type)
     await Helper.send_data(writer, data)
     # print(f"Send self registration to the Trusted party...")
     

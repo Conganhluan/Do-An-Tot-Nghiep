@@ -33,9 +33,10 @@ class Client_info:
 
 class Aggregator_info:
 
-    def __init__(self, host: str, port: int, base_model_class: type):
+    def __init__(self, host: str, port: int, public_key: RSA_public_key, base_model_class: type):
         self.host = host
         self.port = port
+        self.RSA_public_key = public_key
         self.base_model_class = base_model_class
 
 class Commiter:
@@ -105,8 +106,8 @@ class Manager():
         self.aggregator_info = None
         self.last_commitment = None
 
-    def register_aggregator(self, host: str, port: int, base_model_class: type):
-        self.aggregator_info = Aggregator_info(host, port, base_model_class)
+    def register_aggregator(self, host: str, port: int, public_key: RSA_public_key, base_model_class: type):
+        self.aggregator_info = Aggregator_info(host, port, public_key, base_model_class)
 
     def set_last_model_commitment(self, model_commitment: numpy.ndarray[numpy.int64]):
         self.last_commitment = model_commitment

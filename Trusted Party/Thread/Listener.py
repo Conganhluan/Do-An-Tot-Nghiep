@@ -20,12 +20,13 @@ def listener_thread(manager: Manager):
         # Aggregator registers itself with Trusted Party
         elif b"AGG_REGIS" == data[:9]:
 
-            # AGG_REGIS <aggregator_host> <aggregator_port> <base_model_class>
-            host, port, base_model_class = data[10:].split(b' ', 2)
+            # AGG_REGIS <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <base_model_class>
+            host, port, RSA_e, RSA_n, base_model_class = data[10:].split(b' ', 4)
             host = host.decode()
             port = int(port)
+            public_key = RSA_public_key(int(RSA_e), int(RSA_n))
             base_model_class = pickle.loads(base_model_class)
-            manager.register_aggregator(host, port, base_model_class)
+            manager.register_aggregator(host, port, public_key, base_model_class)
             # print(f"Confirm to get registration from the Aggregator {host}:{port}")
 
             # <commiter>
@@ -54,8 +55,8 @@ def listener_thread(manager: Manager):
             manager.add_client(id, host, port, RSA_public_key(e, n))
             # print(f"Confirm to get registration from Client {id} - {host}:{port}")
 
-            # <aggregator_host> <aggregator_port> <gs_mask> <commiter>
-            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.gs_mask} {manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
+            # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
+            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.aggregator_info.RSA_public_key.e} {manager.aggregator_info.RSA_public_key.n} {manager.gs_mask} {manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
             await Helper.send_data(writer, data)
             
             # <base_model_class>

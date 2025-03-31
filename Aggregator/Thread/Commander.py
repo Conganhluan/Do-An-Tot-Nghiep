@@ -41,5 +41,13 @@ def commander_thread(manager: Manager):
             manager.abort_message == command[6:]
             manager.set_flag(manager.FLAG.ABORT)
 
+        elif command == 'local models':
+            for client in manager.client_list:
+                print(f"Client {client.round_ID}:")
+                print(f"Data number: {client.local_datanum}")
+                print(f"Local model: {client.local_parameters}")
+                print(f"Received time: {client.receipt.received_time}")
+                print(f"Signed received data: {client.receipt.signed_received_data}")
+
         else:
-            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>]")
+            print("I'm currently supporting these commands: [stop, public info, round info, register, cls, restart, abort <message>, local models]")

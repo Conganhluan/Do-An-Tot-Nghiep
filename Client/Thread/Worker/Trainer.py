@@ -13,7 +13,7 @@ class Trainer:
         self.local_model : CNNModel_MNIST = model_type()
         self.dataset_type = model_type.__name__.split('_')[-1]
         self.batch_size = 64
-        self.epoch_num = 3
+        self.epoch_num = 1
         self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
         self.get_parameters()
 

@@ -13,10 +13,11 @@ def listener_thread(manager: Manager):
         # Aggregator/Client aborts the process due to abnormal activities
         if b'STOP' == data[:4]:
 
-            verification_round_number = int(data[5:])
-            if verification_round_number != manager.round_number:
+            verification_round_number, message = data[6:].split(b' ', 2)
+            if int(verification_round_number) != manager.round_number:
                 manager.abort("Get the STOP signal with wrong round number")
             else:
+                print("STOP due to " + message.decode())
                 manager.set_flag(manager.FLAG.STOP)
 
         # Trusted Party gets DH public keys from chosen Clients

@@ -49,6 +49,10 @@ def commander_thread(manager: Manager):
         elif command[:5] == 'abort':
             manager.abort_message == command[6:]
             manager.set_flag(manager.FLAG.ABORT)
-        
+
+        elif command == 'receipt':
+            print(f"Received time: {manager.receipt.received_time}")
+            print(f"Signed data: {manager.receipt.signed_received_data}")
+
         else:
-            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart, self secret, neighbor secrets, abort <message>]")
+            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart, self secret, neighbor secrets, abort <message>, receipt]")

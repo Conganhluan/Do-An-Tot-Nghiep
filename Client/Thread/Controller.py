@@ -29,7 +29,6 @@ def controller_thread(manager: Manager):
 
             asyncio.run(send_POINTS(manager))
             manager.start_train()
-            print(f"The max parameter I have is {max(manager.trainer.get_parameters())}")
-            print(f"The min parameter I have is {min(manager.trainer.get_parameters())}")
+            asyncio.run(send_LOCAL_MODEL(manager))
 
         sleep(5)

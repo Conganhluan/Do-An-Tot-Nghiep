@@ -2,7 +2,7 @@ from Thread.Worker.Helper import Helper
 from Thread.Worker.Masker import Masker
 from Thread.Worker.Trainer import Trainer
 from Thread.Worker.BaseModel import *
-import random, numpy
+import random, numpy, struct
 
 class Client_info:
 
@@ -16,12 +16,6 @@ class Client_info:
         # Secret sharing
         self.ss_point : tuple[int, int] = None
         self.ps_point : tuple[int, int] = None
-
-class Aggregator_info:
-
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
 
 class Commiter:
 
@@ -53,6 +47,23 @@ class RSA_public_key:
         self.e = e
         self.n = n
 
+class Receipt:
+
+    def __init__(self, received_time: float, signed_received_data: int):
+        self.received_time = received_time
+        self.signed_received_data = signed_received_data
+
+    def check_receipt(self, data_num: int, parameters: numpy.ndarray[numpy.int64], public_key: RSA_public_key) -> bool:
+        data = int.from_bytes(struct.pack('f', self.received_time) + data_num.to_bytes(5) + parameters.tobytes())
+        return Helper.exponent_modulo(self.signed_received_data, public_key.e, public_key.n) == data % public_key.n
+
+class Aggregator_info:
+
+    def __init__(self, host: str, port: int, public_key: RSA_public_key):
+        self.host = host
+        self.port = port
+        self.RSA_public_key = public_key
+
 class Signer:
 
     def __init__(self):
@@ -65,7 +76,7 @@ class Signer:
     def get_public_key(self):
         return RSA_public_key(self.e, self.n)
 
-    def sign(self, data: int):
+    def sign(self, data: int) -> int:
         return Helper.exponent_modulo(data, self.d, self.n)
     
 class Manager:
@@ -109,6 +120,7 @@ class Manager:
         self.round_ID = None
         self.neighbor_list = None
         self.masker = None
+        self.receipt = None
 
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:
@@ -122,8 +134,8 @@ class Manager:
         self.flag = flag
         print(f"Set flag to {self.flag.__name__}")
 
-    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, commiter: Commiter, gs_mask: int, model_type: type):
-        self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port)
+    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, public_key: RSA_public_key, commiter: Commiter, gs_mask: int, model_type: type):
+        self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port, public_key)
         self.commiter = commiter
         self.gs_mask = gs_mask
         self.trainer = Trainer(model_type)
@@ -148,7 +160,10 @@ class Manager:
         self.trainer.train_model()
 
     def get_masked_model(self) -> numpy.ndarray[numpy.int64]:
-        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask)
+        neighbor_ps = list()
+        for neighbor in self.neighbor_list:
+            neighbor_ps.append((neighbor.round_ID, neighbor.DH_public_key))
+        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask, self.round_ID, neighbor_ps)
     
     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
         ss_points = self.masker.share_ss(len(self.neighbor_list))
@@ -164,3 +179,15 @@ class Manager:
             
     def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64]) -> numpy.ndarray[numpy.float32]:
         return self.masker.unmask_params(masked_parameters, self.gs_mask)
+
+    def get_signed_data_num(self) -> int:
+        return self.signer.sign(self.trainer.data_num)
+    
+    def get_signed_parameters(self) -> int:
+        return self.signer.sign(int.from_bytes(self.get_masked_model().tobytes(), "big"))
+    
+    def set_receipt_from_Aggregator(self, received_time: float, signed_data: int) -> None:
+        self.receipt = Receipt(received_time, signed_data)
+
+    def check_recept(self) -> bool:
+        return self.receipt.check_receipt(self.trainer.data_num, self.get_masked_model(), self.aggregator_info.RSA_public_key)

@@ -36,12 +36,12 @@ Each component has 3 threads: Commander, Controller and Listener
 0. Aggregator/Client aborts the process due to abnormal activities
 ```
 Aggregator/Client   >>> ABORT <message>
-3rd Trusted         >>> STOP <round_number>
+3rd Trusted         >>> STOP <round_number> <message>
 ```
 
 1. Aggregator registers itself with Trusted Party
 ```
-Aggregator  >>> AGG_REGIS <aggregator_host> <aggregator_port> <base_model_class>
+Aggregator  >>> AGG_REGIS <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <base_model_class>
 3rd Trusted >>> <commiter>
 Aggregator  >>> <base_model_commit>                                                         # commitment of the base model
 3rd Trusted >>> SUCCESS
@@ -50,7 +50,7 @@ Aggregator  >>> <base_model_commit>                                             
 2. Client registers itself with Trusted Party
 ```
 Client      >>> CLIENT <client_host> <client_port> <client RSA_public_key>                  # RSA_public_key: (e,d)
-3rd Trusted >>> <aggregator_host> <aggregator_port> <gs_mask> <commiter>
+3rd Trusted >>> <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
             >>> <base_model_class>
 Client      >>> SUCCESS
 ```
@@ -93,11 +93,11 @@ Client      >>> POINTS <self_round_ID> <SS_point_X> <SS_point_Y> <PS_point_X> <P
 Other Client>>> SUCCESS
 ```
 
-8. Client sends local state dict to Aggregator
+8. Client sends local model to Aggregator
 ```
-Client      >>> LOCAL_MODEL <data_number> <signature> <signature>
-            >>> <local_model_state_dict> 
-Aggregator  >>> SUCCESS
+Client      >>> LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
+            >>> <local_model_parameters> 
+Aggregator  >>> SUCCESS <received_time> <signed_received_data>
 ```
 
 9. Aggregator gets secrets points from Clients

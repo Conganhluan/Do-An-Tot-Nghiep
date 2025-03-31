@@ -1,5 +1,5 @@
-import asyncio, telnetlib3, dill as pickle
-from Thread.Worker.Manager import Manager, Client_info, RSA_public_key
+import asyncio, telnetlib3, dill as pickle, numpy
+from Thread.Worker.Manager import Manager, Client_info, RSA_public_key, Receipt
 from Thread.Worker.Helper import Helper
 
 def listener_thread(manager: Manager):
@@ -13,10 +13,11 @@ def listener_thread(manager: Manager):
         # Aggregator/Client aborts the process due to abnormal activities
         if b'STOP' == data[:4]:
 
-            verification_round_number = int(data[5:])
-            if verification_round_number != manager.round_number:
+            verification_round_number, message = data[5:].split(b' ', 2)
+            if int(verification_round_number) != manager.round_number:
                 manager.abort("Get the STOP signal with wrong round number")
             else:
+                print("STOP due to " + message.decode())
                 manager.set_flag(manager.FLAG.STOP)
 
         # Trusted Party sends round information to Aggregator
@@ -44,7 +45,29 @@ def listener_thread(manager: Manager):
             await asyncio.wait_for(Helper.send_data(writer, "SUCCESS"), timeout=None)
             manager.set_round_information(client_list)
             manager.set_flag(manager.FLAG.START_ROUND)
+        
+        # Client sends local model to Aggregator
+        elif b'LOCAL_MODEL' == data[:11]:
             
+            # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
+            round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
+            round_ID, data_number, data_num_signature, parameters_signature = int(round_ID), int(data_number), int(data_num_signature), int(parameters_signature)
+            # print(f"Get local model information from client {round_ID}")
+            
+            # <local_model_parameters>
+            data: bytes = await Helper.receive_data(reader)
+            local_model_parameters = numpy.frombuffer(data, dtype=numpy.int64)
+            # print(f"Get local model parameters from client {round_ID}")
+            
+            manager.receive_trained_data(round_ID, data_number, data_num_signature, parameters_signature, local_model_parameters)
+            receipt: Receipt = manager.get_receipt(round_ID)
+            # print(f"Send receipt to client {round_ID}")
+
+            # SUCCESS <received_time> <signed_received_data>
+            data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
+            await Helper.send_data(writer, data)
+            print(f"Successfully receive local model parameters of client {round_ID}")
+
         else:
             await Helper.send_data(writer, "Operation not allowed!")
         
