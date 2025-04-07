@@ -73,7 +73,7 @@ Client      >>> SUCCESS
 
 5. Trusted Party sends round information to Aggregator
 ```
-3rd Trusted >>> ROUND_INFO <round_number> <client_num>
+3rd Trusted >>> ROUND_INFO <round_number> <client_num> <q>
             In loop of <client_num>:
                 >>> <client_round_ID> <client_host> <client_port> <client_DH_public_key> <client_RSA_public_key>
                 >>> <client_neighbor_round_ID_1> <client_neighbor_round_ID_2> ... <client_neighbor_round_ID_n>
@@ -112,7 +112,10 @@ Aggregator  >>> SUCCESS
 
 10. Aggregator sends aggregated global model to Clients
 ```
-Aggregator  >>> AGG_MODEL <global_model_state_dict> <ZKP_proof> <ZKP_pubic_params> <r>      # <r> is used in commitment: commit = h^(data).k^r mod p
+Aggregator  >>> AGG_MODEL <ZKP_pubic_params> <r>                                                # <r> is used in commitment: commit = h^(data).k^r mod p
+            >>> <global_parameters>
+            >>> <parameters_commit>
+            >>> <ZKP_proof>             
 Client      >>> SUCCESS
 ```
 

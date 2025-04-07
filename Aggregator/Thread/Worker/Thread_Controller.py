@@ -25,7 +25,7 @@ async def send_AGG_REGIS(manager: Manager):
     # print(f"Confirm to get the commiter from the Trusted party")
 
     # <base_model_commit>
-    data = manager.get_model_commit().tobytes()
+    data = manager.get_global_commit().tobytes()
     await Helper.send_data(writer, data)
     # print(f"Send base model commitment to the Trusted party...")
 
@@ -54,7 +54,7 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     await Helper.send_data(writer, data)
 
     # <global_model_parameters>
-    data = manager.get_model_parameters().tobytes()
+    data = manager.get_global_parameters().tobytes()
     await Helper.send_data(writer, data)
 
     # SUCCESS
@@ -138,3 +138,43 @@ async def send_ABORT(message: str):
     # ABORT <message>
     await Helper.send_data(writer, "ABORT " + message)
     writer.close()  
+
+
+
+###########################################################################################################
+
+
+
+# Aggregator sends aggregated global model to Clients
+async def send_AGG_MODEL_each(manager: Manager, client: Client_info):
+
+    reader, writer = await asyncio.open_connection(client.host, client.port)
+    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+
+    # AGG_MODEL <ZKP_pubic_params> <r>
+    data = f"AGG_MODEL"
+    await Helper.send_data(writer, data)
+
+    # <global_parameters>
+    data = manager.global_parameters.tobytes()
+    await Helper.send_data(writer, data)
+
+    # <parameters_commit>
+    data = manager.get_global_commit().tobytes()
+    await Helper.send_data(writer, data)
+
+    # SUCCESS
+    data = await Helper.receive_data(reader)
+    if data == b"SUCCESS":
+        print(f"Successfully send aggregation result to client {client.round_ID}")
+    else:
+        print(f"Client {client.round_ID} returns {data}")
+    writer.close()
+
+async def send_AGG_MODEL(manager: Manager):
+
+    for client in manager.client_list:
+        asyncio.create_task(send_AGG_MODEL_each(manager, client))
+    all_remaining_tasks = asyncio.all_tasks()
+    all_remaining_tasks.remove(asyncio.current_task())
+    await asyncio.wait(all_remaining_tasks)

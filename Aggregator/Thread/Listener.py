@@ -23,8 +23,8 @@ def listener_thread(manager: Manager):
         # Trusted Party sends round information to Aggregator
         elif b'ROUND_INFO' == data[:10]:
 
-            # ROUND_INFO <round_number> <client_num>
-            manager.round_number, client_num = [int(x) for x in data[11:].split(b' ', 1)]
+            # ROUND_INFO <round_number> <client_num> <q>
+            manager.round_number, client_num, manager.q = [int(x) for x in data[11:].split(b' ', 2)]
             client_list = list()
             for i in range(client_num):
 
@@ -71,6 +71,7 @@ def listener_thread(manager: Manager):
                 else:
                     manager.receive_trained_data(client, data_number, data_num_signature, parameters_signature, local_model_parameters)
                     receipt: Receipt = manager.get_receipt(client)
+                    manager.received_data += 1
 
                     # SUCCESS <received_time> <signed_received_data>
                     data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"

@@ -47,7 +47,7 @@ def listener_thread(manager: Manager):
             
             # <base_model_commit/previous_global_model_commit>
             data = await Helper.receive_data(reader)
-            manager.set_last_commit(numpy.frombuffer(data, dtype=numpy.int64))
+            manager.set_last_commit(numpy.frombuffer(data, dtype=numpy.uint64))
             # print("Confirm to get the model commit from the Trusted party")
 
             neighbor_list = list()
@@ -87,9 +87,9 @@ def listener_thread(manager: Manager):
                 manager.abort("The global parameter received from Aggregator is not equal to commitment from the Trusted party")
             else:
                 if manager.round_number == 0:
-                    manager.trainer.load_parameters(global_parameters)
+                    manager.trainer.load_parameters(global_parameters, manager.round_ID)
                 else:
-                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters))
+                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters), manager.round_ID)
 
                 # SUCCESS
                 await Helper.send_data(writer, "SUCCESS")
@@ -123,10 +123,10 @@ def listener_thread(manager: Manager):
                 neighbor_ID, neighbor_status = receiv_data.split(b' ')
                 neighbor = manager.get_neighbor_by_ID(int(neighbor_ID))
                 
-                if neighbor == None:
+                if neighbor is None:
                     manager.abort(f"Aggregator tries to get secret points of unknown client {neighbor_ID}")
                 
-                elif not neighbor.is_online == None:
+                elif not neighbor.is_online is None:
                     manager.abort(f"Aggregator tries to get neighbor {neighbor.round_ID} secret points twice")
 
                 # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
@@ -146,6 +146,27 @@ def listener_thread(manager: Manager):
                 print("Successfully send neighbor secret points to the Aggregator")
             else:
                 print(f"Aggregator returns {data}")
+            writer.close()
+
+        # Aggregator sends aggregated global model to Clients
+        elif data[:9] == b'AGG_MODEL':
+
+            # AGG_MODEL <ZKP_pubic_params> <r>
+
+            # <global_parameters>
+            data = await Helper.receive_data(reader)
+            received_global_parameters = numpy.frombuffer(data, dtype=numpy.int64)
+
+            # <parameters_commit>
+            data = await Helper.receive_data(reader)
+            parameters_commit = numpy.frombuffer(data, dtype=numpy.uint64)
+
+            if not manager.commiter.check_commit(received_global_parameters, parameters_commit):
+                manager.abort("Wrong commit from the Aggregator")
+            else:
+                manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters), manager.round_ID)
+                await Helper.send_data(writer, "SUCCESS")
+                print(f"Successfully receive global models from the Aggregator")
             writer.close()
 
         else:

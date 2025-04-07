@@ -51,7 +51,7 @@ def listener_thread(manager: Manager):
             host, port, e, n = data[7:].split(b' ', 3)
             host = host.decode()
             port, e, n = int(port), int(e), int(n)
-            id = int(time.time()*1024)
+            id = int(time.time()*65535)
             manager.add_client(id, host, port, RSA_public_key(e, n))
             # print(f"Confirm to get registration from Client {id} - {host}:{port}")
 

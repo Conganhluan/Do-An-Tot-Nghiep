@@ -20,7 +20,7 @@ def commander_thread(manager: Manager):
             print(f"RSA keys: d: {manager.signer.d} e: {manager.signer.e} d: {manager.signer.n}")
 
         elif command == "round info":
-            if manager.round_ID == None:
+            if manager.round_ID is None:
                 print("Client is currently not in training round")
                 continue
             print(f"ID: {manager.round_ID}")
@@ -54,5 +54,8 @@ def commander_thread(manager: Manager):
             print(f"Received time: {manager.receipt.received_time}")
             print(f"Signed data: {manager.receipt.signed_received_data}")
 
+        elif command == 'test model':
+            manager.trainer.test_model()
+
         else:
-            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart, self secret, neighbor secrets, abort <message>, receipt]")
+            print("I'm currently supporting these commands: [stop, client info, round info, register, cls, restart, self secret, neighbor secrets, abort <message>, receipt, test model]")

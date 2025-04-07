@@ -30,12 +30,31 @@ class Helper:
         return result
 
     @staticmethod
-    def get_polynomial(point_list: list[tuple[int, int]]) -> tuple[int]:
-        X, Y = [], []
-        for x, y in point_list:
-            X.append(x)
-            Y.append(y)
-        return tuple([int(coeff) for coeff in lagrange(X, Y).coefficients.round()])
+    def get_secret(points: list[tuple[int]]):
+
+        points = sorted(points, key=lambda a: a[0])
+        is_sequence = points[-1][0] - points[0][0] == len(points) - 1
+        total_multiplication = 1
+        total_denominator = 1
+        denominator = [1 for _ in points]
+        idx = 0
+        for x, y in points:
+            for smaller_idx in range(idx):
+                subtract = x - points[smaller_idx][0]
+                denominator[smaller_idx] *= subtract
+                denominator[idx] *= subtract
+                total_denominator *= 1 if is_sequence else subtract
+            total_multiplication *= x
+            idx += 1
+        
+        total_numerator = 0
+        sign = 1
+
+        for idx in range(len(points)):
+            total_numerator += total_multiplication // points[idx][0] * total_denominator // denominator[idx] * points[idx][1] * sign
+            sign = -sign
+
+        return total_numerator // total_denominator
     
     @staticmethod
     def PRNG(seed: int, num_bytes: int) -> int:

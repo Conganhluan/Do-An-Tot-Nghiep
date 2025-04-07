@@ -30,12 +30,12 @@ class Commiter:
         self.k = params[2]
         self.r = None
 
-    def commit(self, data) -> numpy.int64:
+    def commit(self, data) -> numpy.uint64:
         assert self.r
         data = int(data)
-        return Helper.PRNG((Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p, 8)
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
 
-    def check_commit(self, data: numpy.ndarray[numpy.float32 | numpy.int64], commit: numpy.ndarray[numpy.int64]) -> bool:
+    def check_commit(self, data: numpy.ndarray[numpy.float32 | numpy.int64], commit: numpy.ndarray[numpy.uint64]) -> bool:
         assert self.r
         if len(data) != len(commit):
             print(f"Model parameters length: {len(data)}, type {type(data[0])}")
@@ -153,7 +153,7 @@ class Manager:
     def set_masker(self, g: int, q: int):
         self.masker = Masker(g, q)
     
-    def set_last_commit(self, commit: numpy.ndarray[numpy.int64]):
+    def set_last_commit(self, commit: numpy.ndarray[numpy.uint64]):
         self.last_commit = commit
 
     def abort(self, message: str):
@@ -168,7 +168,7 @@ class Manager:
         neighbor_ps = list()
         for neighbor in self.neighbor_list:
             neighbor_ps.append((neighbor.round_ID, neighbor.DH_public_key))
-        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask, self.round_ID, neighbor_ps)
+        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask, self.round_ID, neighbor_ps, self.trainer.data_num)
     
     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
         ss_points = self.masker.share_ss(len(self.neighbor_list))

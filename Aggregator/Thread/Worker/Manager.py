@@ -1,6 +1,8 @@
 from Thread.Worker.BaseModel import *
 import random, numpy, time, struct, threading
 from Thread.Worker.Helper import Helper
+from Thread.Worker.Unmasker import Unmasker
+from Thread.Worker import Unmask_Module
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
 class RSA_public_key:
@@ -57,6 +59,11 @@ class Client_info:
         self.signed_datanum : int = 0
         self.secret_points = list()
         self.receipt = None
+
+        # Aggregation
+        self.ss = 0
+        self.ps = 0
+        self.unmasked_parameters : numpy.ndarray[numpy.int64] | int = None
     
     def set_trained_data(self, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
         self.local_datanum = data_number
@@ -89,10 +96,10 @@ class Commiter:
     def get_secret(self) -> int:
         return self.r
 
-    def commit(self, data) -> numpy.int64:
+    def commit(self, data) -> numpy.uint64:
         assert self.r
         data = int(data)
-        return Helper.PRNG((Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p, 8)
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
 
 class Manager:
 
@@ -130,12 +137,15 @@ class Manager:
         self.abort_message = ""
         self.timeout = True
         self.timeout_time = 0
+        self.received_data = 0
             # Aggregator
-        self.global_model : CNNModel_MNIST = model_type()
+        self.global_model : CNNModel_MNIST | None = model_type()
         self.model_type = model_type
+        self.global_parameters = None
         
         # Round parameters
         self.client_list = None
+        self.q = 0
     
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:
@@ -155,15 +165,21 @@ class Manager:
     def set_round_information(self, client_list: list[Client_info]):
         self.client_list = client_list
 
-    def get_model_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
-        return parameters_to_vector(self.global_model.parameters()).detach().numpy()
-
     def set_commiter(self, commiter: Commiter) -> None:
         self.commiter = commiter
 
-    def get_model_commit(self) -> numpy.ndarray[numpy.int64]:
-        param_arr = self.get_model_parameters()
-        commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.int64)
+    def get_global_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
+        if not self.global_model is None:
+            return parameters_to_vector(self.global_model.parameters()).detach().numpy()
+        else:
+            return self.global_parameters
+
+    def get_global_commit(self) -> numpy.ndarray[numpy.uint64]:
+        if not self.global_model is None:
+            param_arr = parameters_to_vector(self.global_model.parameters()).detach().numpy()
+        else:
+            param_arr = self.global_parameters
+        commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.uint64)
         for idx in range(len(param_arr)):
             commit_arr[idx] = self.commiter.commit(param_arr[idx])
         return commit_arr
@@ -190,7 +206,50 @@ class Manager:
         self.timeout_time = time.time()
         self.set_flag(self.FLAG.AGGREGATE)
 
+    def the_checker(self):
+        while True:
+            if self.timeout:
+                return
+            elif self.received_data == len(self.client_list):
+                print("There are enough clients sending their data")
+                self.timer.cancel()
+                self.end_timer()
+                return
+            time.sleep(10)
+
     def start_timer(self, timeout_seconds: int = 60):
         self.timeout = False
         self.timer = threading.Timer(timeout_seconds, self.end_timer)
         self.timer.start()
+
+        self.checker = threading.Thread(target=self.the_checker)
+        self.checker.start()
+            
+    @Helper.timing
+    def aggregate(self) -> None:
+        
+        total_parameters = [0 for _ in range(len(self.client_list[0].local_parameters))]
+
+        for client in self.client_list:
+            
+            if client.is_online:
+                client.ss = Unmasker.get_secret([(point.x, point.y) for point in client.secret_points])
+                client.unmasked_parameters = numpy.zeros((len(client.local_parameters),), dtype=numpy.int64)
+                Unmask_Module.unmask_ss(client.local_parameters, client.unmasked_parameters, Unmasker.get_PRNG_ss(client.ss))
+
+                for idx in range(len(total_parameters)):
+                    total_parameters[idx] += int(client.unmasked_parameters[idx])
+
+            else:
+                client.ps = Unmasker.get_secret([(point.x, point.y) for point in client.secret_points])
+                neighbor_list = list()
+                for neighbor_ID in client.neighbor_list:
+                    neighbor_list.append((neighbor_ID, self.get_client_by_ID(neighbor_ID).DH_public_key))
+                client.unmasked_parameters = Unmasker.get_PRNG_ps(client.round_ID, client.ps, self.q, neighbor_list) >> 1
+
+                for idx in range(len(total_parameters)):
+                    total_parameters[idx] += client.unmasked_parameters
+
+        total_data_num = sum([client.local_datanum for client in self.client_list if client.is_online])
+        self.global_parameters = numpy.array([param//total_data_num for param in total_parameters], dtype=numpy.int64)
+        self.global_model = None

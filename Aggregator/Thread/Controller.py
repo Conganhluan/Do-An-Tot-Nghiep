@@ -30,6 +30,8 @@ def controller_thread(manager: Manager):
         elif flag == manager.FLAG.AGGREGATE:
 
             asyncio.run(send_STATUS(manager))
+            manager.aggregate()
+            asyncio.run(send_AGG_MODEL(manager))
 
         elif flag == manager.FLAG.RE_REGISTER:
 

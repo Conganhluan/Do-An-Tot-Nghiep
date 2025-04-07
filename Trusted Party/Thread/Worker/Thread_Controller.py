@@ -111,8 +111,8 @@ async def send_ROUND_INFO_aggregator(manager: Manager):
     reader, writer = await asyncio.open_connection(manager.aggregator_info.host, manager.aggregator_info.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # ROUND_INFO <round_number> <client_num>
-    data = f"ROUND_INFO {manager.round_manager.round_number} {len(manager.round_manager.client_list)}"
+    # ROUND_INFO <round_number> <client_num> <q>
+    data = f"ROUND_INFO {manager.round_manager.round_number} {len(manager.round_manager.client_list)} {manager.round_manager.dh_params.q}"
     await Helper.send_data(writer, data)
 
     for client in manager.round_manager.client_list:

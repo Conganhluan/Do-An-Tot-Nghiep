@@ -49,7 +49,7 @@ def get_masked(cnp.ndarray[uint32, ndim=1, mode="c", cast=True] parameters, int6
         # print(f"GS masked: {gs_masked_param}")
 
         # Mask it with 63 bits ps_mask
-        ps_masked_param = data_num_multiplied_param + (ps_mask & 9223372036854775807)
+        ps_masked_param = data_num_multiplied_param + (ps_mask >> 1)
 
         # print(f"PS masked: {ps_masked_param}")
 

@@ -13,7 +13,7 @@ class Trainer:
         self.local_model : CNNModel_MNIST = model_type()
         self.dataset_type = model_type.__name__.split('_')[-1]
         self.batch_size = 64
-        self.epoch_num = 1
+        self.epoch_num = 3
         self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
         self.get_parameters()
 
@@ -21,18 +21,29 @@ class Trainer:
         self.ID = ID
 
         # Dataset
+            
             # Root dataset
         self.root_dataset : type = getattr(torchvision.datasets, self.dataset_type)
-        self.root_train_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=True, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
-        self.root_test_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=False, download=True, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
+        self.root_train_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=True, download=False, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
+        self.root_test_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=False, download=False, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
+            
             # Self dataset
         self.data_num = self.root_train_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
         self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
-        self.self_test_data = Subset(self.root_test_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
+        # print(f"Trained data number: {self.data_num}, from {self.ID * self.data_num} to {(self.ID + 1) * self.data_num}")
+        # print(f"Real trained data number: {len(self.self_train_data.dataset)}")
 
-    def load_parameters(self, parameters: numpy.ndarray[numpy.float32]):
-        tensor = torch.tensor(parameters, requires_grad=True)
-        vector_to_parameters(tensor, self.local_model._parameters)
+        self.test_data_num = self.root_test_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
+        self.self_test_data = Subset(self.root_test_data, range(self.ID * self.test_data_num, (self.ID + 1) * self.test_data_num))
+        # print(f"Tested data number: {self.test_data_num}, from {self.ID * self.test_data_num} to {(self.ID + 1) * self.test_data_num}")
+        # print(f"Real tested data number: {len(self.self_test_data.dataset)}")
+
+    @Helper.timing
+    def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
+        tensor = torch.tensor(parameters, dtype=torch.float32, requires_grad=True)
+        torch.save(self.local_model, f"Thread/Worker/Data/Models/{round_ID}_old.pth")
+        vector_to_parameters(tensor, self.local_model.parameters())
+        torch.save(self.local_model, f"Thread/Worker/Data/Models/{round_ID}_new.pth")
 
     def get_parameters(self) -> numpy.ndarray[numpy.float32]:
         return parameters_to_vector(self.local_model.parameters()).detach().numpy()
@@ -40,8 +51,8 @@ class Trainer:
     def __get_data__(self, data: Subset) -> TensorDataset:
         
         if self.root_dataset == torchvision.datasets.MNIST:
-            origin_data = torch.stack([dataset[0] for dataset in data.dataset])
-            target_label = torch.tensor([dataset[1] for dataset in data.dataset])
+            origin_data = torch.stack([data.dataset[idx][0] for idx in data.indices])
+            target_label = torch.tensor([data.dataset[idx][1] for idx in data.indices])
             return TensorDataset(origin_data, target_label)
     
         # Please input here any another root_dataset type (cifar10, cifar100, etc.)
@@ -94,3 +105,8 @@ class Trainer:
             epoch_idx += 1
             self.local_model.eval()
             self.test(test_loader, epoch_idx)
+
+    def test_model(self):
+        test_loader = DataLoader(self.__get_test_data__())
+        self.local_model.eval()
+        self.test(test_loader, epoch_idx=0)
