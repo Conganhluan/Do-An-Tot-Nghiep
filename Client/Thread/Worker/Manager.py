@@ -161,7 +161,7 @@ class Manager:
         self.set_flag(self.FLAG.ABORT)
     
     def start_train(self):
-        self.trainer.set_dataset_ID(self.round_ID)
+        self.trainer.set_dataset_ID(self.round_ID, self.round_number)
         self.trainer.train_model()
 
     def get_masked_model(self) -> numpy.ndarray[numpy.int64]:

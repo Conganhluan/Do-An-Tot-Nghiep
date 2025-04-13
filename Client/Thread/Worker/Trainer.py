@@ -17,7 +17,7 @@ class Trainer:
         self.optimizer = optim.SGD(self.local_model.parameters(), lr=0.01, momentum=0.5)
         self.get_parameters()
 
-    def set_dataset_ID(self, ID: int):
+    def set_dataset_ID(self, ID: int, round_number: int):
         self.ID = ID
 
         # Dataset
@@ -28,15 +28,19 @@ class Trainer:
         self.root_test_data : torchvision.datasets.MNIST = self.root_dataset(root="Thread/Worker/Data", train=False, download=False, transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor()]))
             
             # Self dataset
-        self.data_num = self.root_train_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
-        self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
-        # print(f"Trained data number: {self.data_num}, from {self.ID * self.data_num} to {(self.ID + 1) * self.data_num}")
-        # print(f"Real trained data number: {len(self.self_train_data.dataset)}")
+        ATTEND_CLIENTS = int(Helper.get_env_variable('ATTEND_CLIENTS'))
+        # self.data_num = self.root_train_data.__len__() // ATTEND_CLIENTS
+        # self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
 
-        self.test_data_num = self.root_test_data.__len__() // int(Helper.get_env_variable('ATTEND_CLIENTS'))
-        self.self_test_data = Subset(self.root_test_data, range(self.ID * self.test_data_num, (self.ID + 1) * self.test_data_num))
-        # print(f"Tested data number: {self.test_data_num}, from {self.ID * self.test_data_num} to {(self.ID + 1) * self.test_data_num}")
-        # print(f"Real tested data number: {len(self.self_test_data.dataset)}")
+        self.data_num = self.root_train_data.__len__() // 1000
+        self.self_train_data = Subset(self.root_train_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.data_num), (round_number * ATTEND_CLIENTS + self.ID + 1) * self.data_num)
+
+        # self.test_data_num = self.root_test_data.__len__() // ATTEND_CLIENTS
+        # self.self_test_data = Subset(self.root_test_data, range(self.ID * self.test_data_num, (self.ID + 1) * self.test_data_num))
+
+        self.test_data_num = self.root_test_data.__len__() // 1000
+        self.self_test_data = Subset(self.root_test_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.test_data_num), (round_number * ATTEND_CLIENTS + self.ID + 1) * self.test_data_num)
+
 
     @Helper.timing
     def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
