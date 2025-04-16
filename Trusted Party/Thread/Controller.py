@@ -21,7 +21,7 @@ def controller_thread(manager: Manager):
         # Init the round
         elif flag == manager.FLAG.START_ROUND:
             
-            manager.round_manager = Round_Manager(manager.choose_clients(ATTEND_CLIENTS), manager.get_current_round(), manager.get_commiter())
+            manager.round_manager = Round_Manager(manager.choose_clients(ATTEND_CLIENTS), manager.get_current_round())
             asyncio.run(send_DH_PARAM(manager))
             asyncio.run(send_ROUND_INFO_client(manager))
             asyncio.run(send_ROUND_INFO_aggregator(manager))

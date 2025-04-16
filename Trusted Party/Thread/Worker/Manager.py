@@ -39,13 +39,13 @@ class Aggregator_info:
         self.RSA_public_key = public_key
         self.base_model_class = base_model_class
 
-class Commiter:
+# class Commiter:
 
-    def __init__(self):
-        self.p = randprime(1 << 63, 1 << 64)
-        self.h = primitive_root(self.p)
-        self.k = random.randint(1 << 63, 1 << 64)
-        self.r = None
+#     def __init__(self):
+#         self.p = randprime(1 << 63, 1 << 64)
+#         self.h = primitive_root(self.p)
+#         self.k = random.randint(1 << 63, 1 << 64)
+#         self.r = None
 
 class DH_params:
 
@@ -73,9 +73,9 @@ class Manager():
         self.client_list : list[Client_info] = list()
         self.aggregator_info = None
             # Public parameters
-        self.commiter = Commiter()
+        # self.commiter = Commiter()
         self.current_round = 0
-        self.last_commitment: numpy.ndarray[numpy.int64] = None
+        # self.last_commitment: numpy.ndarray[numpy.int64] = None
         self.gs_mask = random.randint(1, 2 ** 64)
             # Controller
         self.flag = self.FLAG.NONE
@@ -104,13 +104,13 @@ class Manager():
     
     def clear_aggregator(self) -> None:
         self.aggregator_info = None
-        self.last_commitment = None
+        # self.last_commitment = None
 
     def register_aggregator(self, host: str, port: int, public_key: RSA_public_key, base_model_class: type):
         self.aggregator_info = Aggregator_info(host, port, public_key, base_model_class)
 
-    def set_last_model_commitment(self, model_commitment: numpy.ndarray[numpy.int64]):
-        self.last_commitment = model_commitment
+    # def set_last_model_commitment(self, model_commitment: numpy.ndarray[numpy.int64]):
+    #     self.last_commitment = model_commitment
 
     def __get_client_by_ID__(self, client_ID: int) -> Client_info | None:
         for client_info in self.client_list:
@@ -130,8 +130,8 @@ class Manager():
     def get_current_round(self) -> int:
         return self.current_round
 
-    def get_commiter(self) -> Commiter:
-        return self.commiter
+    # def get_commiter(self) -> Commiter:
+    #     return self.commiter
     
     def choose_clients(self, client_num: int) -> list[Client_info]:
         if client_num > len(self.client_list):
@@ -146,7 +146,7 @@ class Manager():
     
 class Round_Manager():
 
-    def __init__(self, client_list: list[Client_info], round_number: int, commiter: Commiter):
+    def __init__(self, client_list: list[Client_info], round_number: int):
         self.client_list = client_list
         self.round_number = round_number
         
@@ -158,7 +158,6 @@ class Round_Manager():
         for round_ID in range(len(self.client_list)):
             self.client_list[round_ID].set_round_information(round_ID, graph[round_ID])
 
-        self.commiter = commiter
         self.dh_params = DH_params()
 
     def get_DH_params(self) -> DH_params:

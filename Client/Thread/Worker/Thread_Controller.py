@@ -1,6 +1,6 @@
 import asyncio, dill as pickle, time
 from Thread.Worker.Helper import Helper
-from Thread.Worker.Manager import Manager, Commiter, Client_info, RSA_public_key
+from Thread.Worker.Manager import Manager, Client_info, RSA_public_key
 
 TRUSTED_PARTY_HOST = Helper.get_env_variable("TRUSTED_PARTY_HOST")
 TRUSTED_PARTY_PORT = Helper.get_env_variable("TRUSTED_PARTY_PORT")
@@ -15,18 +15,18 @@ async def send_CLIENT(manager: Manager):
     data = f'CLIENT {manager.host} {manager.port} {manager.signer.e} {manager.signer.n}'
     await Helper.send_data(writer, data)
     
-    # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
+    # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask>
     data = await Helper.receive_data(reader)
-    host, port, e, n, gs_mask, p, h, k = data.split(b' ', 7)
+    host, port, e, n, gs_mask = data.split(b' ', 4)  # Fixed: Only expecting 5 items now
     host = host.decode()
     port, gs_mask = int(port), int(gs_mask)
     public_key = RSA_public_key(int(e), int(n))
-    commiter = Commiter(tuple([int(param) for param in [p, h, k]]))
+    # commiter = Commiter(tuple([int(param) for param in [p, h, k]]))
 
     # <base_model_class>
     data = await Helper.receive_data(reader)
     base_model_class = pickle.loads(data)
-    manager.set_FL_public_params(host, port, public_key, commiter, gs_mask, base_model_class)
+    manager.set_FL_public_params(host, port, public_key, gs_mask, base_model_class)
 
     # SUCCESS
     await Helper.send_data(writer, "SUCCESS")

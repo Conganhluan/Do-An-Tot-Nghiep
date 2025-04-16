@@ -23,7 +23,7 @@ def commander_thread(manager: Manager):
                 print(f"Aggregator info: {manager.aggregator_info.host}:{manager.aggregator_info.port}, Model type: {manager.aggregator_info.base_model_class.__name__}")
             else:
                 print(f"There is no aggregator registered")
-            print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}")
+            # print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}")
             print(f'Current round number: {manager.current_round}')
             print(f"GS mask: {manager.gs_mask}")
             

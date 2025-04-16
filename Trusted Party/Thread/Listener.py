@@ -30,13 +30,13 @@ def listener_thread(manager: Manager):
             # print(f"Confirm to get registration from the Aggregator {host}:{port}")
 
             # <commiter>
-            data = f"{manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
-            await Helper.send_data(writer, data)
+            # data = f"{manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
+            # await Helper.send_data(writer, data)
             # print(f"Send commiter to the Aggregator...")
 
             # <base_model_commit> 
-            data = await Helper.receive_data(reader)
-            manager.set_last_model_commitment(numpy.frombuffer(data, dtype=numpy.int64))
+            # data = await Helper.receive_data(reader)
+            # manager.set_last_model_commitment(numpy.frombuffer(data, dtype=numpy.int64))
             # print(f"Confirm to get the model commitment from the Aggregator")
 
             # SUCCESS
@@ -55,8 +55,8 @@ def listener_thread(manager: Manager):
             manager.add_client(id, host, port, RSA_public_key(e, n))
             # print(f"Confirm to get registration from Client {id} - {host}:{port}")
 
-            # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
-            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.aggregator_info.RSA_public_key.e} {manager.aggregator_info.RSA_public_key.n} {manager.gs_mask} {manager.commiter.p} {manager.commiter.h} {manager.commiter.k}"
+            # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask>
+            data = f"{manager.aggregator_info.host} {manager.aggregator_info.port} {manager.aggregator_info.RSA_public_key.e} {manager.aggregator_info.RSA_public_key.n} {manager.gs_mask}"
             await Helper.send_data(writer, data)
             
             # <base_model_class>

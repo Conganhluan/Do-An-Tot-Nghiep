@@ -46,8 +46,8 @@ def listener_thread(manager: Manager):
             round_number, self_round_ID, neighbor_num = int(round_number), int(self_round_ID), int(neighbor_num)
             
             # <base_model_commit/previous_global_model_commit>
-            data = await Helper.receive_data(reader)
-            manager.set_last_commit(numpy.frombuffer(data, dtype=numpy.uint64))
+            # data = await Helper.receive_data(reader)
+            # manager.set_last_commit(numpy.frombuffer(data, dtype=numpy.uint64))
             # print("Confirm to get the model commit from the Trusted party")
 
             neighbor_list = list()
@@ -70,31 +70,21 @@ def listener_thread(manager: Manager):
         # Aggregator sends global model to Clients
         elif b'GLOB_MODEL' == data[:10]:
 
-            # GLOB_MODEL <r> 
-            commit_secret = int(data[11:])
-            manager.commiter.set_secret(commit_secret)
-
             # <global_model_parameters>
             data = await Helper.receive_data(reader)
             
             # print(f"Get global parameters for the round {manager.round_number}")
             if manager.round_number == 0:
                 global_parameters = numpy.frombuffer(data, dtype=numpy.float32)
+                manager.trainer.load_parameters(global_parameters, manager.round_ID)
             else:
                 global_parameters = numpy.frombuffer(data, dtype=numpy.int64)
+                manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters), manager.round_ID)
 
-            if not manager.commiter.check_commit(global_parameters, manager.last_commit):
-                manager.abort("The global parameter received from Aggregator is not equal to commitment from the Trusted party")
-            else:
-                if manager.round_number == 0:
-                    manager.trainer.load_parameters(global_parameters, manager.round_ID)
-                else:
-                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters), manager.round_ID)
-
-                # SUCCESS
-                await Helper.send_data(writer, "SUCCESS")
-                print("Successfully receive global model from the Aggregator")
-                manager.set_flag(manager.FLAG.TRAIN)
+            # SUCCESS
+            await Helper.send_data(writer, "SUCCESS")
+            print("Successfully receive global model from the Aggregator")
+            manager.set_flag(manager.FLAG.TRAIN)
             
             writer.close()
 
@@ -151,22 +141,14 @@ def listener_thread(manager: Manager):
         # Aggregator sends aggregated global model to Clients
         elif data[:9] == b'AGG_MODEL':
 
-            # AGG_MODEL <ZKP_pubic_params> <r>
-
             # <global_parameters>
             data = await Helper.receive_data(reader)
             received_global_parameters = numpy.frombuffer(data, dtype=numpy.int64)
 
-            # <parameters_commit>
-            data = await Helper.receive_data(reader)
-            parameters_commit = numpy.frombuffer(data, dtype=numpy.uint64)
-
-            if not manager.commiter.check_commit(received_global_parameters, parameters_commit):
-                manager.abort("Wrong commit from the Aggregator")
-            else:
-                manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters), manager.round_ID)
-                await Helper.send_data(writer, "SUCCESS")
-                print(f"Successfully receive global models from the Aggregator")
+            # Load the parameters directly without verification since ZKP is removed
+            manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters), manager.round_ID)
+            await Helper.send_data(writer, "SUCCESS")
+            print(f"Successfully receive global models from the Aggregator")
             writer.close()
 
         else:

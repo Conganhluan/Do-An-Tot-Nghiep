@@ -1,5 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
+import torch.optim as optim
+from torch.nn import CrossEntropyLoss
 
 class CNNModel_MNIST(nn.Module):
     
@@ -16,7 +19,7 @@ class CNNModel_MNIST(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.max_pool2(x)
+        x = self.max_pool1(x)  # Fixed: Using max_pool1 instead of max_pool2
         x = F.relu(x)
         x = self.conv2(x)
         x = self.max_pool2(x)
@@ -29,3 +32,17 @@ class CNNModel_MNIST(nn.Module):
 
 # Please add another model types here
 # ...
+
+# class CNNModel_MNIST(nn.Module):
+    
+#     def __init__(self):
+#         super().__init__()
+#         self.resnet = models.resnet18(weights = None)
+#         self.resnet.conv1 = nn.Conv2d(in_channels=1, out_channels = 64, kernel_size=7, stride=2, padding=3, bias=False)
+#         #dataset made from 10 classes
+#         self.resnet.fc = nn.Linear(self.resnet.fc.in_features,10)
+#         self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+#         self.loss = CrossEntropyLoss()
+    
+#     def forward(self, x):
+#         return self.resnet(x)

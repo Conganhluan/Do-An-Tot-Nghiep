@@ -82,24 +82,24 @@ class Client_info:
     def check_signature(self, data: int, signature: int) -> None:
         return Helper.exponent_modulo(signature, self.RSA_public_key.e, self.RSA_public_key.n) == data % self.RSA_public_key.n
 
-class Commiter:
+# class Commiter:
 
-    def __init__(self, params : tuple[int]):
-        self.p = params[0]
-        self.h = params[1]
-        self.k = params[2]
-        self.r = None
+#     def __init__(self, params : tuple[int]):
+#         self.p = params[0]
+#         self.h = params[1]
+#         self.k = params[2]
+#         self.r = None
     
-    def gen_new_secret(self) -> None:
-        self.r = random.randint(1, 2147483648)
+#     def gen_new_secret(self) -> None:
+#         self.r = random.randint(1, 2147483648)
 
-    def get_secret(self) -> int:
-        return self.r
+#     def get_secret(self) -> int:
+#         return self.r
 
-    def commit(self, data) -> numpy.uint64:
-        assert self.r
-        data = int(data)
-        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+#     def commit(self, data) -> numpy.uint64:
+#         assert self.r
+#         data = int(data)
+#         return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
 
 class Manager:
 
@@ -130,7 +130,6 @@ class Manager:
         self.port = Helper.get_available_port()
         self.signer = Signer()
             # Public parameters
-        self.commiter = None
         self.round_number = 0
             # Controller
         self.flag = Manager.FLAG.NONE
@@ -159,14 +158,16 @@ class Manager:
         self.flag = flag
         print(f"Set flag to {self.flag.__name__}")
 
-    def set_public_parameters(self, commiter: Commiter):
-        self.commiter = commiter
+    # def set_public_parameters(self, commiter: Commiter):
+    #     self.commiter = commiter
 
     def set_round_information(self, client_list: list[Client_info]):
         self.client_list = client_list
+        self.received_data = 0  # Reset received_data counter at the start of each round
+        print(f"Starting new round with {len(client_list)} clients. Reset received data counter.")
 
-    def set_commiter(self, commiter: Commiter) -> None:
-        self.commiter = commiter
+    # def set_commiter(self, commiter: Commiter) -> None:
+    #     self.commiter = commiter
 
     def get_global_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
         if not self.global_model is None:
@@ -174,15 +175,15 @@ class Manager:
         else:
             return self.global_parameters
 
-    def get_global_commit(self) -> numpy.ndarray[numpy.uint64]:
-        if not self.global_model is None:
-            param_arr = parameters_to_vector(self.global_model.parameters()).detach().numpy()
-        else:
-            param_arr = self.global_parameters
-        commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.uint64)
-        for idx in range(len(param_arr)):
-            commit_arr[idx] = self.commiter.commit(param_arr[idx])
-        return commit_arr
+    # def get_global_commit(self) -> numpy.ndarray[numpy.uint64]:
+    #     if not self.global_model is None:
+    #         param_arr = parameters_to_vector(self.global_model.parameters()).detach().numpy()
+    #     else:
+    #         param_arr = self.global_parameters
+    #     commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.uint64)
+    #     for idx in range(len(param_arr)):
+    #         commit_arr[idx] = self.commiter.commit(param_arr[idx])
+    #     return commit_arr
     
     def abort(self, message: str):
         self.abort_message = message

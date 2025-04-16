@@ -1,6 +1,6 @@
 import asyncio, dill as pickle
 from Thread.Worker.Helper import Helper
-from Thread.Worker.Manager import Manager, Client_info, Commiter
+from Thread.Worker.Manager import Manager, Client_info
 from Thread.Worker.BaseModel import *
 
 TRUSTED_PARTY_HOST = Helper.get_env_variable("TRUSTED_PARTY_HOST")
@@ -18,15 +18,15 @@ async def send_AGG_REGIS(manager: Manager):
     # print(f"Send self registration to the Trusted party...")
     
     # <commiter>
-    data = await Helper.receive_data(reader)
-    commiter = Commiter(tuple([int(param) for param in data.split(b' ')]))
-    manager.set_commiter(commiter)
-    manager.commiter.gen_new_secret()
+    # data = await Helper.receive_data(reader)
+    # commiter = Commiter(tuple([int(param) for param in data.split(b' ')]))
+    # manager.set_commiter(commiter)
+    # manager.commiter.gen_new_secret()
     # print(f"Confirm to get the commiter from the Trusted party")
 
-    # <base_model_commit>
-    data = manager.get_global_commit().tobytes()
-    await Helper.send_data(writer, data)
+    # # <base_model_commit>
+    # data = manager.get_global_commit().tobytes()
+    # await Helper.send_data(writer, data)
     # print(f"Send base model commitment to the Trusted party...")
 
     # SUCCESS
@@ -49,8 +49,8 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     reader, writer = await asyncio.open_connection(client.host, client.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # GLOB_MODEL <r>
-    data = f"GLOB_MODEL {manager.commiter.get_secret()}"
+    # GLOB_MODEL header (without commiter data)
+    data = f"GLOB_MODEL"
     await Helper.send_data(writer, data)
 
     # <global_model_parameters>
@@ -66,7 +66,7 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     writer.close()
 
 async def send_GLOB_MODEL(manager: Manager):
-
+    print("đợi xíu, đang tải mô hình!!!")
     for client in manager.client_list:
         asyncio.create_task(send_GLOB_MODEL_each(manager, client))
     all_remaining_tasks = asyncio.all_tasks()
@@ -151,16 +151,12 @@ async def send_AGG_MODEL_each(manager: Manager, client: Client_info):
     reader, writer = await asyncio.open_connection(client.host, client.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # AGG_MODEL <ZKP_pubic_params> <r>
+    # AGG_MODEL header
     data = f"AGG_MODEL"
     await Helper.send_data(writer, data)
 
     # <global_parameters>
     data = manager.global_parameters.tobytes()
-    await Helper.send_data(writer, data)
-
-    # <parameters_commit>
-    data = manager.get_global_commit().tobytes()
     await Helper.send_data(writer, data)
 
     # SUCCESS

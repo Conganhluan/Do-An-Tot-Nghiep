@@ -38,7 +38,7 @@ class Masker:
             raise Exception("Share limit is not enough to prevent Aggregator playing 2 faces")
 
         # Define random coefficients for the polynomial
-        coeffs = [secret] + list(choices(range(1, coeff_limit), k = share_limit - 1))
+        coeffs = [secret] + list(choices(range(1, coeff_limit), k = share_limit - 2))
 
         # Make point_list((x1,y1), (x2, y2))
         x_list = list(sample(range(1, neighbor_num + 1), neighbor_num))
@@ -46,7 +46,7 @@ class Masker:
         for x in x_list:
             parameter = 1
             y = 0
-            for i in range(share_limit):
+            for i in range(share_limit-1):
                 y += parameter*coeffs[i]
                 parameter *= x
             point_list.append((x, y))
