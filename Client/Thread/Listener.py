@@ -38,12 +38,19 @@ def listener_thread(manager: Manager):
                 print(f"Trusted party returns {data}")
             writer.close()
 
+        # Trusted Party pings to check if client is ready to be chosen for training round
+        elif b'PING' == data:
+
+            # SUCCESS
+            await Helper.send_data(writer, "SUCCESS")
+            print("Successfully receive round information from the Trusted party")
+            writer.close()
+
         # Trusted Party sends round information to Clients
         elif b'ROUND_INFO' == data[:10]:
 
-            # ROUND_INFO <round_number> <client_round_ID> <neighbor_num>
-            round_number, self_round_ID, neighbor_num = data[11:].split(b' ', 2)
-            round_number, self_round_ID, neighbor_num = int(round_number), int(self_round_ID), int(neighbor_num)
+            # ROUND_INFO <old_gs_mask> <new_gs_mask> <round_number> <client_round_ID> <neighbor_num>
+            old_gs_mask, new_gs_mask, round_number, self_round_ID, neighbor_num = [int(param) for param in data[11:].split(b' ', 4)]
             
             # <base_model_commit/previous_global_model_commit>
             data = await Helper.receive_data(reader)
@@ -60,7 +67,7 @@ def listener_thread(manager: Manager):
                 host = host.decode()
                 neighbor_list.append(Client_info(round_ID, host, port, DH_public_key))
             
-            manager.set_round_information(round_number, self_round_ID, neighbor_list)
+            manager.set_round_information(old_gs_mask, new_gs_mask, round_number, self_round_ID, neighbor_list)
 
             # SUCCESS
             await Helper.send_data(writer, "SUCCESS")
@@ -89,7 +96,7 @@ def listener_thread(manager: Manager):
                 if manager.round_number == 0:
                     manager.trainer.load_parameters(global_parameters, manager.round_ID)
                 else:
-                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters), manager.round_ID)
+                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters, old_gs_mask), manager.round_ID)
 
                 # SUCCESS
                 await Helper.send_data(writer, "SUCCESS")
@@ -151,7 +158,9 @@ def listener_thread(manager: Manager):
         # Aggregator sends aggregated global model to Clients
         elif data[:9] == b'AGG_MODEL':
 
-            # AGG_MODEL <ZKP_pubic_params> <r>
+            # AGG_MODEL <r>
+            r = int(data[10:])
+            manager.commiter.set_secret(r)
 
             # <global_parameters>
             data = await Helper.receive_data(reader)
@@ -164,7 +173,7 @@ def listener_thread(manager: Manager):
             if not manager.commiter.check_commit(received_global_parameters, parameters_commit):
                 manager.abort("Wrong commit from the Aggregator")
             else:
-                manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters), manager.round_ID)
+                manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters, manager.new_gs_mask), manager.round_ID)
                 await Helper.send_data(writer, "SUCCESS")
                 print(f"Successfully receive global models from the Aggregator")
             writer.close()

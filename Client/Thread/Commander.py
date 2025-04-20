@@ -16,7 +16,7 @@ def commander_thread(manager: Manager):
         elif command == "client info":
             print(f"Self info: {manager.host}:{manager.port}")
             print(f"Aggregator info - {manager.aggregator_info.host}:{manager.aggregator_info.port}")
-            print(f"Commitment parameters: p: {manager.commiter.p}, h: {manager.commiter.h}, k: {manager.commiter.k}")
+            print(f"Commitment parameters: p: {manager.commiter.p}, h: {manager.commiter.h}, k: {manager.commiter.k}, r: {manager.commiter.r}")
             print(f"RSA keys: d: {manager.signer.d} e: {manager.signer.e} d: {manager.signer.n}")
 
         elif command == "round info":

@@ -96,7 +96,7 @@ class Commiter:
     def get_secret(self) -> int:
         return self.r
 
-    def commit(self, data) -> numpy.uint64:
+    def commit(self, data: int | float) -> numpy.uint64:
         assert self.r
         data = int(data)
         return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
@@ -168,17 +168,10 @@ class Manager:
     def set_commiter(self, commiter: Commiter) -> None:
         self.commiter = commiter
 
-    def get_global_parameters(self) -> numpy.ndarray[numpy.float32 | numpy.int64]:
-        if not self.global_model is None:
-            return parameters_to_vector(self.global_model.parameters()).detach().numpy()
-        else:
-            return self.global_parameters
+    def get_global_model_parameters(self) -> numpy.ndarray[numpy.float32]:
+        return parameters_to_vector(self.global_model.parameters()).detach().numpy()
 
-    def get_global_commit(self) -> numpy.ndarray[numpy.uint64]:
-        if not self.global_model is None:
-            param_arr = parameters_to_vector(self.global_model.parameters()).detach().numpy()
-        else:
-            param_arr = self.global_parameters
+    def get_global_commit(self, param_arr: numpy.ndarray[numpy.uint64 | numpy.float32]) -> numpy.ndarray[numpy.uint64]:
         commit_arr = numpy.zeros((len(param_arr), ), dtype=numpy.uint64)
         for idx in range(len(param_arr)):
             commit_arr[idx] = self.commiter.commit(param_arr[idx])
@@ -205,6 +198,7 @@ class Manager:
         self.timeout = True
         self.timeout_time = time.time()
         self.set_flag(self.FLAG.AGGREGATE)
+        self.checker = None
 
     def the_checker(self):
         while True:

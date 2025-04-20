@@ -76,7 +76,8 @@ class Manager():
         self.commiter = Commiter()
         self.current_round = 0
         self.last_commitment: numpy.ndarray[numpy.int64] = None
-        self.gs_mask = random.randint(1, 2 ** 64)
+        self.old_gs_mask = 1
+        self.new_gs_mask = random.randint(1, 2 ** 64)
             # Controller
         self.flag = self.FLAG.NONE
         self.stop_message = ""
@@ -133,14 +134,16 @@ class Manager():
     def get_commiter(self) -> Commiter:
         return self.commiter
     
-    def choose_clients(self, client_num: int) -> list[Client_info]:
-        if client_num > len(self.client_list):
-            client_num = len(self.client_list)
+    def choose_clients(self, available_client_list: list[Client_info], client_num: int) -> list[Client_info]:
+        """
+        This function gets a list of availabe client and number of desired chosen clients
+        It chooses a subset of clients, which then be removed from the available client list 'directly', and returned as the output of the function
+        """
+        
         return_list = list()
-        client_list = deepcopy(self.client_list)
         for i in range(client_num):
-            chosen_one = random.choices(client_list, weights=[max(client.choose_possibility, 0) for client in client_list])[0]
-            client_list.remove(chosen_one)
+            chosen_one = random.choices(available_client_list, weights=[max(client.choose_possibility, 0) for client in available_client_list])[0]
+            available_client_list.remove(chosen_one)
             return_list.append(chosen_one)
         return return_list
     

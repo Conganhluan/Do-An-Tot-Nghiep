@@ -15,18 +15,18 @@ async def send_CLIENT(manager: Manager):
     data = f'CLIENT {manager.host} {manager.port} {manager.signer.e} {manager.signer.n}'
     await Helper.send_data(writer, data)
     
-    # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
+    # <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <commiter>
     data = await Helper.receive_data(reader)
-    host, port, e, n, gs_mask, p, h, k = data.split(b' ', 7)
+    host, port, e, n, p, h, k = data.split(b' ', 6)
     host = host.decode()
-    port, gs_mask = int(port), int(gs_mask)
+    port = int(port)
     public_key = RSA_public_key(int(e), int(n))
     commiter = Commiter(tuple([int(param) for param in [p, h, k]]))
 
     # <base_model_class>
     data = await Helper.receive_data(reader)
     base_model_class = pickle.loads(data)
-    manager.set_FL_public_params(host, port, public_key, commiter, gs_mask, base_model_class)
+    manager.set_FL_public_params(host, port, public_key, commiter, base_model_class)
 
     # SUCCESS
     await Helper.send_data(writer, "SUCCESS")
@@ -125,3 +125,20 @@ async def send_LOCAL_MODEL(manager: Manager):
     else:
         print(f"Trusted party returns {data}")
     writer.close()
+
+
+
+###########################################################################################################
+
+
+
+async def send_END(manager: Manager):
+
+    reader, writer = await asyncio.open_connection(TRUSTED_PARTY_HOST, TRUSTED_PARTY_PORT)
+    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+
+    # END <global_model_commit> <client_num>
+
+    # <ZKP proof>
+
+    

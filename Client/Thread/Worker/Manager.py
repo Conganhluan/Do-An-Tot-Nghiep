@@ -111,7 +111,8 @@ class Manager:
         self.aggregator_info = None
             # Public parameters
         self.commiter = None
-        self.gs_mask = 1
+        self.old_gs_mask = 1
+        self.new_gs_mask = 1
             # Controller
         self.flag = self.FLAG.NONE
         self.abort_message = ""
@@ -139,13 +140,14 @@ class Manager:
         self.flag = flag
         print(f"Set flag to {self.flag.__name__}")
 
-    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, public_key: RSA_public_key, commiter: Commiter, gs_mask: int, model_type: type):
+    def set_FL_public_params(self, aggregator_host: str, aggregator_port: int, public_key: RSA_public_key, commiter: Commiter, model_type: type):
         self.aggregator_info = Aggregator_info(aggregator_host, aggregator_port, public_key)
         self.commiter = commiter
-        self.gs_mask = gs_mask
         self.trainer = Trainer(model_type)
 
-    def set_round_information(self, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
+    def set_round_information(self, old_gs_mask: int, new_gs_mask: int, round_number: int, round_ID: int, neighbor_list: list[Client_info]):
+        self.old_gs_mask = old_gs_mask
+        self.new_gs_mask = new_gs_mask
         self.round_number = round_number
         self.round_ID = round_ID
         self.neighbor_list = neighbor_list
@@ -168,7 +170,7 @@ class Manager:
         neighbor_ps = list()
         for neighbor in self.neighbor_list:
             neighbor_ps.append((neighbor.round_ID, neighbor.DH_public_key))
-        return self.masker.mask_params(self.trainer.get_parameters(), self.gs_mask, self.round_ID, neighbor_ps, self.trainer.data_num)
+        return self.masker.mask_params(self.trainer.get_parameters(), self.new_gs_mask, self.round_ID, neighbor_ps, self.trainer.data_num)
     
     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
         ss_points = self.masker.share_ss(len(self.neighbor_list))
@@ -178,8 +180,8 @@ class Manager:
     def set_secret_points(self, neighbor_ID: int, ss_point: tuple[int], ps_point: tuple[int]):
         self.get_neighbor_by_ID(neighbor_ID).set_secret_points(ss_point, ps_point)
             
-    def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64]) -> numpy.ndarray[numpy.float32]:
-        return self.masker.unmask_params(masked_parameters, self.gs_mask)
+    def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64], gs_mask: int) -> numpy.ndarray[numpy.float32]:
+        return self.masker.unmask_params(masked_parameters, gs_mask)
 
     def get_signed_data_num(self) -> int:
         return self.signer.sign(self.trainer.data_num)

@@ -1,2 +1,0 @@
-Client number, Neighbor number, Secret Sharing time, Secret Calculation time
-10000, 50, 0.00035, 2e+01

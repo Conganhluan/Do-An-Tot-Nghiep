@@ -25,7 +25,7 @@ async def send_AGG_REGIS(manager: Manager):
     # print(f"Confirm to get the commiter from the Trusted party")
 
     # <base_model_commit>
-    data = manager.get_global_commit().tobytes()
+    data = manager.get_global_commit(manager.get_global_model_parameters()).tobytes()
     await Helper.send_data(writer, data)
     # print(f"Send base model commitment to the Trusted party...")
 
@@ -44,7 +44,7 @@ async def send_AGG_REGIS(manager: Manager):
 
 
 # Aggregator sends global model to Clients
-async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
+async def send_GLOB_MODEL_each(manager: Manager, client: Client_info, global_parameters: bytes):
 
     reader, writer = await asyncio.open_connection(client.host, client.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
@@ -54,8 +54,7 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
     await Helper.send_data(writer, data)
 
     # <global_model_parameters>
-    data = manager.get_global_parameters().tobytes()
-    await Helper.send_data(writer, data)
+    await Helper.send_data(writer, global_parameters)
 
     # SUCCESS
     data = await Helper.receive_data(reader)
@@ -67,8 +66,10 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info):
 
 async def send_GLOB_MODEL(manager: Manager):
 
+    global_parameters = manager.get_global_model_parameters().tobytes()
+
     for client in manager.client_list:
-        asyncio.create_task(send_GLOB_MODEL_each(manager, client))
+        asyncio.create_task(send_GLOB_MODEL_each(manager, client, global_parameters))
     all_remaining_tasks = asyncio.all_tasks()
     all_remaining_tasks.remove(asyncio.current_task())
     await asyncio.wait(all_remaining_tasks)
@@ -146,22 +147,20 @@ async def send_ABORT(message: str):
 
 
 # Aggregator sends aggregated global model to Clients
-async def send_AGG_MODEL_each(manager: Manager, client: Client_info):
+async def send_AGG_MODEL_each(manager: Manager, client: Client_info, global_parameters: bytes, parameters_commit: bytes):
 
     reader, writer = await asyncio.open_connection(client.host, client.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # AGG_MODEL <ZKP_pubic_params> <r>
-    data = f"AGG_MODEL"
+    # AGG_MODEL <r>
+    data = f"AGG_MODEL {manager.commiter.get_secret()}"
     await Helper.send_data(writer, data)
 
     # <global_parameters>
-    data = manager.global_parameters.tobytes()
-    await Helper.send_data(writer, data)
+    await Helper.send_data(writer, global_parameters)
 
     # <parameters_commit>
-    data = manager.get_global_commit().tobytes()
-    await Helper.send_data(writer, data)
+    await Helper.send_data(writer, parameters_commit)
 
     # SUCCESS
     data = await Helper.receive_data(reader)
@@ -173,8 +172,12 @@ async def send_AGG_MODEL_each(manager: Manager, client: Client_info):
 
 async def send_AGG_MODEL(manager: Manager):
 
+    manager.commiter.gen_new_secret()
+    global_parameters = manager.global_parameters.tobytes()
+    parameters_commit = manager.get_global_commit(manager.global_parameters).tobytes()
+
     for client in manager.client_list:
-        asyncio.create_task(send_AGG_MODEL_each(manager, client))
+        asyncio.create_task(send_AGG_MODEL_each(manager, client, global_parameters, parameters_commit))
     all_remaining_tasks = asyncio.all_tasks()
     all_remaining_tasks.remove(asyncio.current_task())
     await asyncio.wait(all_remaining_tasks)

@@ -23,7 +23,7 @@ def commander_thread(manager: Manager):
 
         elif command == 'public info':
             print(f"Self address: {manager.host}:{manager.port}")
-            print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}")
+            print(f"Commitment params: h: {manager.commiter.h}, k: {manager.commiter.k}, p: {manager.commiter.p}, r: {manager.commiter.r}")
 
         elif command == 'register':
             manager.set_flag(manager.FLAG.RE_REGISTER)

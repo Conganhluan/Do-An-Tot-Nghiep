@@ -50,28 +50,34 @@ Aggregator  >>> <base_model_commit>                                             
 2. Client registers itself with Trusted Party
 ```
 Client      >>> CLIENT <client_host> <client_port> <client RSA_public_key>                  # RSA_public_key: (e,d)
-3rd Trusted >>> <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <gs_mask> <commiter>
+3rd Trusted >>> <aggregator_host> <aggregator_port> <aggregator RSA_public_key> <commiter>
             >>> <base_model_class>
 Client      >>> SUCCESS
 ```
 
-3. Trusted Party gets DH public keys from chosen Clients
+3. Trusted Party pings to check if client is ready to be chosen for training round
+```
+3rd Trusted >>> PING
+Client      >>> SUCCESS
+```
+
+4. Trusted Party gets DH public keys from chosen Clients
 ```
 3rd Trusted >>> DH_PARAM <g> <q>                                                            # Diffile-Hellman: g^(secret_i)^(secret_j) mod q
 Client      >>> <client_DH_public_key>
 3rd Trusted >>> SUCCESS
 ```
 
-4. Trusted Party sends round information to Clients
+5. Trusted Party sends round information to Clients
 ```
-3rd Trusted >>> ROUND_INFO <round_number> <client_round_ID> <neighbor_num> 
+3rd Trusted >>> ROUND_INFO <round_number> <client_round_ID> <old_gs_mask> <new_gs_mask> <neighbor_num> 
             >>> <base_model_commit/previous_global_model_commit>
             In loop of <neighbor_num>:
                 >>> <neighbor_round_ID> <neighbor_host> <neighbor_port> <neighbor_DH_public_key>
 Client      >>> SUCCESS
 ```
 
-5. Trusted Party sends round information to Aggregator
+6. Trusted Party sends round information to Aggregator
 ```
 3rd Trusted >>> ROUND_INFO <round_number> <client_num> <q>
             In loop of <client_num>:
@@ -80,20 +86,20 @@ Client      >>> SUCCESS
 Aggregator  >>> SUCCESS
 ```
 
-6. Aggregator sends global model to Clients
+7. Aggregator sends global model to Clients
 ```
 Aggregator  >>> GLOB_MODEL <r>                           # <r> is used in commitment
             >>> <global_model_parameters>
 Client      >>> SUCCESS
 ```
 
-7. Client sends secret points to its neighbors
+8. Client sends secret points to its neighbors
 ```
 Client      >>> POINTS <self_round_ID> <SS_point_X> <SS_point_Y> <PS_point_X> <PS_point_Y>                                          # (SS_point_X,SS_point_Y) is a point in polynomial F(x): x^n + ... + x^2 + x + <ss>
 Other Client>>> SUCCESS
 ```
 
-8. Client sends local model to Aggregator
+9. Client sends local model to Aggregator
 ```
 Client      >>> LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
             >>> <local_model_parameters> 
@@ -101,7 +107,7 @@ Aggregator  >>> SUCCESS <received_time> <signed_received_data>
         or  >>> OUT_OF_TIME <end_time>
 ```
 
-9. Aggregator gets secrets points from Clients
+10. Aggregator gets secrets points from Clients
 ```
 Aggregator  >>> STATUS <neighbor_num>
             In loop of <neighbor_num>:
@@ -110,18 +116,45 @@ Client          >>> <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> 
 Aggregator  >>> SUCCESS
 ```
 
-10. Aggregator sends aggregated global model to Clients
+11. Aggregator sends circuit to Trusted Party
 ```
-Aggregator  >>> AGG_MODEL <ZKP_pubic_params> <r>                                                # <r> is used in commitment: commit = h^(data).k^r mod p
-            >>> <global_parameters>
-            >>> <parameters_commit>
-            >>> <ZKP_proof>             
+Aggregator  >>> CIRCUIT <circuit>
+3rd Trusted >>> SUCCESS
+```
+
+12. Trusted Party sends proving key to Trusted Party
+```
+3rd Trusted >>> PROVE_KEY <proving key>
+Aggregator  >>> SUCCESS
+```
+
+13. Trusted Party sends verifying key to Clients
+```
+3rd Trusted >>> VERIFY_KEY <verifying key>
 Client      >>> SUCCESS
 ```
 
-11. Client sends round-end signal to Trusted Party
+14. Aggregator sends aggregated global model to Clients
 ```
-Client      >>> END <global_model_commit> <client_num>
+Aggregator  >>> AGG_MODEL <r>                                                # <r> is used in commitment: commit = h^(data).k^r mod p
+            >>> <global_parameters>
+            >>> <parameters_commit>
+            >>> <ZKP_proof>
+            >>> <ZKP_pubic_params>          
+Client      >>> SUCCESS
+```
+
+15. Aggregator sends round-end signal to Trusted Party
+```
+Aggregator  >>> AGG_END <global_model_commit> <client_num>
+            In loop of <client_num>:
+                >>> <cient_round_ID> <ON/OFF>
+3rd Trusted >>> SUCCESS
+```
+
+16. Client sends round-end signal to Trusted Party
+```
+Client      >>> CLIENT_END <global_model_commit> <accuracy_evaluation> <client_num>
             In loop of <client_num>:
                 >>> <client_round_ID> <ON/OFF>
 3rd Trusted >>> SUCCESS
