@@ -49,43 +49,50 @@ def listener_thread(manager: Manager):
         # Client sends local model to Aggregator
         elif b'LOCAL_MODEL' == data[:11]:
             
-            # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
-            client_round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
-            client_round_ID, data_number, data_num_signature = int(client_round_ID), int(data_number), int(data_num_signature)
-            parameters_signature : list[int] = pickle.loads(parameters_signature)
-            # print(f"Get local model information from client {round_ID}")
-
-            # <local_model_parameters>
+            # LOCAL_MODEL <round_ID> <data_number> <signed_data_number> <client_r>
+            round_ID, data_num, signed_data_num, local_r = [int(param) for param in data[12:].split(b' ', 3)]
+            
+            # <masked_parameters>
             data: bytes = await Helper.receive_data(reader)
-            local_model_parameters = numpy.frombuffer(data, dtype=numpy.int64)
-            # print(f"Get local model parameters from client {round_ID}")
+            masked_params = numpy.frombuffer(data, dtype=numpy.int64)
+
+            # <committed_parameters>
+            data: bytes = await Helper.receive_data(reader)
+            committed_params = numpy.frombuffer(data, dtype=numpy.uint64)
+
+            # <signed_parameters>
+            data: bytes = await Helper.receive_data(reader)
+            signed_params = pickle.loads(data)
             
             if not manager.timeout:
 
-                client = manager.get_client_by_ID(client_round_ID)
+                client = manager.get_client_by_ID(round_ID)
                 
-                if not client.check_signature(data_number, data_num_signature):
+                if not client.check_signature(data_num, signed_data_num):
                     manager.abort(f"The signature of data number from client {client.round_ID} is wrong")
             
-                elif not client.check_parameters_signature(local_model_parameters, parameters_signature):
+                elif not client.check_parameters_signature(masked_params, committed_params):
                     manager.abort(f"The signature of local model parameters from client {client.round_ID} is wrong")
                 
+                elif not client.check_commited_params(manager.commiter, masked_params, committed_params, local_r):
+                    manager.abort(f"The commitment from client {client.round_ID} is wrong")
+
                 else:
-                    manager.receive_trained_data(client, data_number, data_num_signature, parameters_signature, local_model_parameters)
+                    manager.receive_trained_data(client, data_num, signed_data_num, masked_params, local_r, committed_params, signed_params)
                     receipt: Receipt = manager.get_receipt(client)
                     manager.received_data += 1
 
                     # SUCCESS <received_time> <signed_received_data>
                     data = f"SUCCESS {receipt.received_time} {receipt.signed_received_data}"
                     await Helper.send_data(writer, data)
-                    print(f"Successfully receive local model parameters of client {client_round_ID}")
+                    print(f"Successfully receive local model parameters of client {round_ID}")
 
             else:
 
                 # OUT_OF_TIME <end_time>
                 data = f"OUT_OF_TIME {manager.timeout_time}"
                 await Helper.send_data(writer, data)
-                print(f"Client {client_round_ID} has been late for the timeout of {manager.timeout_time}!")
+                print(f"Client {round_ID} has been late for the timeout of {manager.timeout_time}!")
 
         else:
             await Helper.send_data(writer, "Operation not allowed!")

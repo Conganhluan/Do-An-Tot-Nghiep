@@ -29,6 +29,15 @@ class Commiter:
         self.h = params[1]
         self.k = params[2]
         self.r = None
+        self.local_r = None
+
+    def gen_new_local_r(self) -> None:
+        self.local_r = random.randint(1, 2147483648)
+
+    def local_commit(self, data) -> numpy.uint64:
+        assert self.local_r
+        data = int(data)
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.local_r, self.p)) % self.p
 
     def commit(self, data) -> numpy.uint64:
         assert self.r
@@ -166,11 +175,20 @@ class Manager:
         self.trainer.set_dataset_ID(self.round_ID, self.round_number)
         self.trainer.train_model()
 
-    def get_masked_model(self) -> numpy.ndarray[numpy.int64]:
+    @Helper.timing
+    def get_masked_params(self) -> numpy.ndarray[numpy.int64]:
         neighbor_ps = list()
         for neighbor in self.neighbor_list:
             neighbor_ps.append((neighbor.round_ID, neighbor.DH_public_key))
         return self.masker.mask_params(self.trainer.get_parameters(), self.new_gs_mask, self.round_ID, neighbor_ps, self.trainer.data_num)
+    
+    @Helper.timing
+    def get_committed_params(self, params: numpy.ndarray[numpy.int64]) -> numpy.ndarray[numpy.uint64]:
+        return numpy.asarray([self.commiter.local_commit(param) for param in params], dtype=numpy.uint64)
+    
+    @Helper.timing
+    def get_signed_params(self, params: numpy.ndarray[numpy.uint64]) -> list[int]:
+        return [self.signer.sign(param) for param in params]
     
     def get_secret_points(self) -> list[tuple[tuple[int, int]]]:
         ss_points = self.masker.share_ss(len(self.neighbor_list))
@@ -182,9 +200,6 @@ class Manager:
             
     def get_unmasked_model(self, masked_parameters: numpy.ndarray[numpy.int64], gs_mask: int) -> numpy.ndarray[numpy.float32]:
         return self.masker.unmask_params(masked_parameters, gs_mask)
-
-    def get_signed_data_num(self) -> int:
-        return self.signer.sign(self.trainer.data_num)
     
     def set_receipt_from_Aggregator(self, received_time: float, signed_data: int) -> None:
         self.receipt = Receipt(received_time, signed_data)

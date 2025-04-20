@@ -92,17 +92,22 @@ async def send_LOCAL_MODEL(manager: Manager):
     reader, writer = await asyncio.open_connection(manager.aggregator_info.host, manager.aggregator_info.port)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
-    masked_model = manager.get_masked_model()
-    data = f"LOCAL_MODEL {manager.round_ID} {manager.trainer.data_num} {manager.get_signed_data_num()} ".encode() + pickle.dumps([manager.signer.sign(int(param)) for param in masked_model])
+    # LOCAL_MODEL <round_ID> <data_number> <signed_data_number> <client_r>
+    manager.commiter.gen_new_local_r()
+    data = f"LOCAL_MODEL {manager.round_ID} {manager.trainer.data_num} {manager.signer.sign(manager.trainer.data_num)} {manager.commiter.local_r}"
     await Helper.send_data(writer, data)
 
-    # print("Send local model information")
+    # <masked_parameters>
+    masked_parameters = manager.get_masked_params()
+    await Helper.send_data(writer, masked_parameters.tobytes())
 
-    # <local_model_parameters>
-    await Helper.send_data(writer, masked_model.tobytes())
+    # <committed_parameters>
+    committed_parameters = manager.get_committed_params(masked_parameters)
+    await Helper.send_data(writer, committed_parameters.tobytes())
 
-    # print("Send local model parameters")
+    # <signed_parameters>
+    signed_parameters = manager.get_signed_params(committed_parameters)
+    await Helper.send_data(writer, pickle.dumps(signed_parameters))
 
     # SUCCESS <received_time> <signed_received_data>
     data = await Helper.receive_data(reader)
@@ -113,7 +118,7 @@ async def send_LOCAL_MODEL(manager: Manager):
         manager.set_receipt_from_Aggregator(received_time, signed_received_data)
 
         # print("Check receipt")
-        if not manager.check_receipt(masked_model):
+        if not manager.check_receipt(committed_parameters):
             manager.abort("The receipt from the Aggregator is incorrect!")
         else:
             print("Successfully receive receipt from the Aggregator")

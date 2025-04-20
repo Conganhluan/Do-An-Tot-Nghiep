@@ -30,6 +30,28 @@ class Signer:
     def sign(self, data: int) -> int:
         return Helper.exponent_modulo(data, self.d, self.n)
 
+class Commiter:
+
+    def __init__(self, params : tuple[int]):
+        self.p = params[0]
+        self.h = params[1]
+        self.k = params[2]
+        self.r = None
+    
+    def gen_new_secret(self) -> None:
+        self.r = random.randint(1, 2147483648)
+
+    def get_secret(self) -> int:
+        return self.r
+
+    def commit(self, data: int | float) -> numpy.uint64:
+        assert self.r
+        data = int(data)
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+
+    def client_commit(self, data: int, local_r: int) -> numpy.uint64:
+        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, local_r, self.p)) % self.p
+
 class Secret_Point:
 
     def __init__(self, x: int, y: int, x_signed: int, y_signed: int, neighbor_ID: int):
@@ -54,7 +76,9 @@ class Client_info:
         # After training
         self.is_online = False
         self.local_parameters : numpy.ndarray[numpy.int64] = None
-        self.signed_parameters : int = 0
+        self.local_r : int = 0
+        self.committed_parameters : numpy.ndarray[numpy.uint64] = None 
+        self.signed_parameters : list[int] = None
         self.local_datanum : int = 0
         self.signed_datanum : int = 0
         self.secret_points = list()
@@ -65,44 +89,31 @@ class Client_info:
         self.ps = 0
         self.unmasked_parameters : numpy.ndarray[numpy.int64] | int = None
     
-    def set_trained_data(self, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+    def set_trained_data(self, data_number: int, signed_data_number: int, params: numpy.ndarray[numpy.int64], local_r: int, committed_params: numpy.ndarray[numpy.uint64], signed_params: list[int]) -> None:
         self.local_datanum = data_number
         self.signed_datanum = signed_data_number
-        self.signed_parameters = signed_parameters
-        self.local_parameters = parameters
+        self.local_parameters = params
+        self.committed_parameters = committed_params
+        self.signed_parameters = signed_params
 
     def create_receipt(self, signer: Signer):
         received_time = time.time()
-        received_data = int.from_bytes(struct.pack('f', received_time) + self.local_datanum.to_bytes(5) + self.local_parameters.tobytes())
+        received_data = int.from_bytes(struct.pack('f', received_time) + self.local_datanum.to_bytes(5) + self.committed_parameters.tobytes())
         self.receipt = Receipt(received_time, signer.sign(received_data))
 
     def add_secret_points(self, x: int, y: int, x_signed: int, y_signed: int, neighbor_ID: int) -> None:
         self.secret_points.append(Secret_Point(x, y, x_signed, y_signed, neighbor_ID))
 
     def check_signature(self, data: int, signature: int) -> bool:
-        return Helper.exponent_modulo(signature, self.RSA_public_key.e, self.RSA_public_key.n) == data % self.RSA_public_key.n
+        return Helper.exponent_modulo(signature, self.RSA_public_key.e, self.RSA_public_key.n) == int(data) % self.RSA_public_key.n
     
+    @Helper.timing
     def check_parameters_signature(self, params: numpy.ndarray[numpy.int64], params_signature: list[int]) -> bool:
-        return all([self.check_signature(int(param), signature)] for param, signature in zip(params, params_signature))
+        return all([self.check_signature(param, signature)] for param, signature in zip(params, params_signature))
 
-class Commiter:
-
-    def __init__(self, params : tuple[int]):
-        self.p = params[0]
-        self.h = params[1]
-        self.k = params[2]
-        self.r = None
-    
-    def gen_new_secret(self) -> None:
-        self.r = random.randint(1, 2147483648)
-
-    def get_secret(self) -> int:
-        return self.r
-
-    def commit(self, data: int | float) -> numpy.uint64:
-        assert self.r
-        data = int(data)
-        return (Helper.exponent_modulo(self.h, data, self.p) * Helper.exponent_modulo(self.k, self.r, self.p)) % self.p
+    @Helper.timing
+    def check_commited_params(self, commiter: Commiter, params: numpy.ndarray[numpy.int64], committed_params: numpy.ndarray[numpy.uint64], local_r: int):
+        return all([commiter.client_commit(param, local_r)==committed_param for param, committed_param in zip(params, committed_params)])
 
 class Manager:
 
@@ -189,9 +200,9 @@ class Manager:
             if client.round_ID == client_ID:
                 return client
 
-    def receive_trained_data(self, client: Client_info, data_number: int, signed_data_number: int, signed_parameters: int, parameters: numpy.ndarray[numpy.int64]) -> None:
+    def receive_trained_data(self, client: Client_info, data_number: int, signed_data_number: int, params: numpy.ndarray[numpy.int64], local_r: int, committed_params: numpy.ndarray[numpy.uint64], signed_params: list[int]) -> None:
         client.is_online = True
-        client.set_trained_data(data_number, signed_data_number, signed_parameters, parameters)
+        client.set_trained_data(data_number, signed_data_number, params, local_r, committed_params, signed_params)
         client.create_receipt(self.signer)
 
     def get_receipt(self, client: Client_info) -> Receipt:

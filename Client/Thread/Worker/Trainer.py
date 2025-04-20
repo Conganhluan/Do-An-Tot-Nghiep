@@ -41,8 +41,6 @@ class Trainer:
         self.test_data_num = self.root_test_data.__len__() // 1000
         self.self_test_data = Subset(self.root_test_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.test_data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.test_data_num))
 
-
-    @Helper.timing
     def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
         tensor = torch.tensor(parameters, dtype=torch.float32, requires_grad=True)
         torch.save(self.local_model, f"Thread/Worker/Data/Models/{round_ID}_old.pth")

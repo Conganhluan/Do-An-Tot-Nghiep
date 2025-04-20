@@ -101,8 +101,10 @@ Other Client>>> SUCCESS
 
 9. Client sends local model to Aggregator
 ```
-Client      >>> LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
-            >>> <local_model_parameters> 
+Client      >>> LOCAL_MODEL <round_ID> <data_number> <signed_data_number> <client_r>
+            >>> <masked_parameters>
+            >>> <committed_parameters>
+            >>> <signed_parameters>
 Aggregator  >>> SUCCESS <received_time> <signed_received_data>
         or  >>> OUT_OF_TIME <end_time>
 ```

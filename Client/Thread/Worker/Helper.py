@@ -17,6 +17,7 @@ class Helper:
 
     @staticmethod
     def exponent_modulo(base: int, exponent: int, modulo: int) -> int:
+        base, exponent, modulo = [int(number) for number in (base, exponent, modulo)]
         if modulo == 1:
             return 0
         
