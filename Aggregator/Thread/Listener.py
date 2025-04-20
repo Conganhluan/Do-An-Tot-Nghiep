@@ -51,7 +51,8 @@ def listener_thread(manager: Manager):
             
             # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
             client_round_ID, data_number, data_num_signature, parameters_signature = data[12:].split(b' ', 3)
-            client_round_ID, data_number, data_num_signature, parameters_signature = int(client_round_ID), int(data_number), int(data_num_signature), int(parameters_signature)
+            client_round_ID, data_number, data_num_signature = int(client_round_ID), int(data_number), int(data_num_signature)
+            parameters_signature : list[int] = pickle.loads(parameters_signature)
             # print(f"Get local model information from client {round_ID}")
 
             # <local_model_parameters>
@@ -65,7 +66,8 @@ def listener_thread(manager: Manager):
                 
                 if not client.check_signature(data_number, data_num_signature):
                     manager.abort(f"The signature of data number from client {client.round_ID} is wrong")
-                elif not client.check_signature(int.from_bytes(data), parameters_signature):
+            
+                elif not client.check_parameters_signature(local_model_parameters, parameters_signature):
                     manager.abort(f"The signature of local model parameters from client {client.round_ID} is wrong")
                 
                 else:

@@ -79,8 +79,11 @@ class Client_info:
     def add_secret_points(self, x: int, y: int, x_signed: int, y_signed: int, neighbor_ID: int) -> None:
         self.secret_points.append(Secret_Point(x, y, x_signed, y_signed, neighbor_ID))
 
-    def check_signature(self, data: int, signature: int) -> None:
+    def check_signature(self, data: int, signature: int) -> bool:
         return Helper.exponent_modulo(signature, self.RSA_public_key.e, self.RSA_public_key.n) == data % self.RSA_public_key.n
+    
+    def check_parameters_signature(self, params: numpy.ndarray[numpy.int64], params_signature: list[int]) -> bool:
+        return all([self.check_signature(int(param), signature)] for param, signature in zip(params, params_signature))
 
 class Commiter:
 

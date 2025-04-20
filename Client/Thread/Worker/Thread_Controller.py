@@ -93,14 +93,14 @@ async def send_LOCAL_MODEL(manager: Manager):
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
     # LOCAL_MODEL <round_ID> <data_number> <data_num_signature> <parameters_signature>
-    data = f"LOCAL_MODEL {manager.round_ID} {manager.trainer.data_num} {manager.get_signed_data_num()} {manager.get_signed_parameters()}"
+    masked_model = manager.get_masked_model()
+    data = f"LOCAL_MODEL {manager.round_ID} {manager.trainer.data_num} {manager.get_signed_data_num()} ".encode() + pickle.dumps([manager.signer.sign(int(param)) for param in masked_model])
     await Helper.send_data(writer, data)
 
     # print("Send local model information")
 
     # <local_model_parameters>
-    data = manager.get_masked_model().tobytes()
-    await Helper.send_data(writer, data)
+    await Helper.send_data(writer, masked_model.tobytes())
 
     # print("Send local model parameters")
 
@@ -113,7 +113,7 @@ async def send_LOCAL_MODEL(manager: Manager):
         manager.set_receipt_from_Aggregator(received_time, signed_received_data)
 
         # print("Check receipt")
-        if not manager.check_recept():
+        if not manager.check_receipt(masked_model):
             manager.abort("The receipt from the Aggregator is incorrect!")
         else:
             print("Successfully receive receipt from the Aggregator")

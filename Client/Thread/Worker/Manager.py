@@ -186,14 +186,11 @@ class Manager:
     def get_signed_data_num(self) -> int:
         return self.signer.sign(self.trainer.data_num)
     
-    def get_signed_parameters(self) -> int:
-        return self.signer.sign(int.from_bytes(self.get_masked_model().tobytes(), "big"))
-    
     def set_receipt_from_Aggregator(self, received_time: float, signed_data: int) -> None:
         self.receipt = Receipt(received_time, signed_data)
 
-    def check_recept(self) -> bool:
-        return self.receipt.check_receipt(self.trainer.data_num, self.get_masked_model(), self.aggregator_info.RSA_public_key)
+    def check_receipt(self, masked_model: numpy.ndarray[numpy.int64]) -> bool:
+        return self.receipt.check_receipt(self.trainer.data_num, masked_model, self.aggregator_info.RSA_public_key)
     
     def get_neighbor_by_ID(self, neighbor_ID: int) -> Client_info | None:
         for neighbor in self.neighbor_list:
