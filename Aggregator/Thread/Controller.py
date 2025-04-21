@@ -1,6 +1,7 @@
 from Thread.Worker.Manager import Manager
 from Thread.Worker.Helper import Helper
 from Thread.Worker.Thread_Controller import *
+from Thread.Worker import ZKP
 from time import sleep
 
 def controller_thread(manager: Manager):
@@ -31,6 +32,7 @@ def controller_thread(manager: Manager):
 
             asyncio.run(send_STATUS(manager))
             manager.aggregate()
+            ZKP.create_ZKP(manager)
             asyncio.run(send_AGG_MODEL(manager))
 
         elif flag == manager.FLAG.RE_REGISTER:

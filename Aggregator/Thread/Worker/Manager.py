@@ -81,7 +81,7 @@ class Client_info:
         self.signed_parameters : list[int] = None
         self.local_datanum : int = 0
         self.signed_datanum : int = 0
-        self.secret_points = list()
+        self.secret_points : list[Secret_Point] = list()
         self.receipt = None
 
         # Aggregation

@@ -42,9 +42,9 @@ class Aggregator_info:
 class Commiter:
 
     def __init__(self):
-        self.p = randprime(1 << 63, 1 << 64)
+        self.p = randprime(1 << 7, 1 << 8)
         self.h = primitive_root(self.p)
-        self.k = random.randint(1 << 63, 1 << 64)
+        self.k = random.randint(1 << 7, 1 << 8)
         self.r = None
 
 class DH_params:

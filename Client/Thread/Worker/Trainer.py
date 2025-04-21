@@ -32,13 +32,13 @@ class Trainer:
         # self.data_num = self.root_train_data.__len__() // ATTEND_CLIENTS
         # self.self_train_data = Subset(self.root_train_data, range(self.ID * self.data_num, (self.ID + 1) * self.data_num))
 
-        self.data_num = self.root_train_data.__len__() // 1000
+        self.data_num = self.root_train_data.__len__() // 100
         self.self_train_data = Subset(self.root_train_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.data_num))
 
         # self.test_data_num = self.root_test_data.__len__() // ATTEND_CLIENTS
         # self.self_test_data = Subset(self.root_test_data, range(self.ID * self.test_data_num, (self.ID + 1) * self.test_data_num))
 
-        self.test_data_num = self.root_test_data.__len__() // 1000
+        self.test_data_num = self.root_test_data.__len__() // 100
         self.self_test_data = Subset(self.root_test_data, range((round_number * ATTEND_CLIENTS + self.ID) * self.test_data_num, (round_number * ATTEND_CLIENTS + self.ID + 1) * self.test_data_num))
 
     def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
