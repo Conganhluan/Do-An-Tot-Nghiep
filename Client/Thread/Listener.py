@@ -96,7 +96,7 @@ def listener_thread(manager: Manager):
                 if manager.round_number == 0:
                     manager.trainer.load_parameters(global_parameters, manager.round_ID)
                 else:
-                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters, old_gs_mask), manager.round_ID)
+                    manager.trainer.load_parameters(manager.get_unmasked_model(global_parameters, manager.old_gs_mask), manager.round_ID)
 
                 # SUCCESS
                 await Helper.send_data(writer, "SUCCESS")
@@ -170,13 +170,25 @@ def listener_thread(manager: Manager):
             data = await Helper.receive_data(reader)
             parameters_commit = numpy.frombuffer(data, dtype=numpy.uint64)
 
+            # <ZKP_proof>
+            data = await Helper.receive_data(reader)
+            open("Thread/Worker/Data/proof.json", "wb").write(data)
+
+            # <ZKP_pubic_params>
+            data = await Helper.receive_data(reader)
+            open("Thread/Worker/Data/public.json", "wb").write(data)
+
             if not manager.commiter.check_commit(received_global_parameters, parameters_commit):
                 manager.abort("Wrong commit from the Aggregator")
             else:
                 manager.trainer.load_parameters(manager.get_unmasked_model(received_global_parameters, manager.new_gs_mask), manager.round_ID)
+                manager.set_last_commit(parameters_commit)
                 await Helper.send_data(writer, "SUCCESS")
                 print(f"Successfully receive global models from the Aggregator")
             writer.close()
+
+            manager.set_flag(manager.FLAG.END_ROUND)
+            manager.trainer.total_evaluate()
 
         else:
             await Helper.send_data(writer, "Operation not allowed!")

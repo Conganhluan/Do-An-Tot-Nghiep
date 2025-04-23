@@ -111,6 +111,9 @@ class Manager:
         class TRAIN:
             # Used to start training
             pass
+        class END_ROUND:
+            # Used for ending round
+            pass
 
     def __init__(self):
         # FL parameters

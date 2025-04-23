@@ -70,7 +70,7 @@ async def send_POINTS_each(manager: Manager, neighbor: Client_info, points: tupl
     if data == b"SUCCESS":
         print(f"Successfully share secret points with client {neighbor.round_ID}")
     else:
-        print(f"Trusted party returns {data}")
+        print(f"Client {neighbor.round_ID} returns {data}")
     writer.close()
 
 async def send_POINTS(manager: Manager):
@@ -137,13 +137,27 @@ async def send_LOCAL_MODEL(manager: Manager):
 
 
 
-async def send_END(manager: Manager):
+# Client sends round-end signal to Trusted Party
+async def send_CLI_END(manager: Manager):
 
     reader, writer = await asyncio.open_connection(TRUSTED_PARTY_HOST, TRUSTED_PARTY_PORT)
     _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # END <global_model_commit> <client_num>
+    # CLI_END <global_model_commit> <client_num>
+    data = "CLI_END ".encode() + manager.last_commit.tobytes()
+    await Helper.send_data(writer, data)
 
-    # <ZKP proof>
+    # <client_round_ID> <accuracy_evaluation>
+    data = f"{manager.round_ID} {manager.trainer.self_evaluate()}"
+    await Helper.send_data(writer, data)
 
-    
+    # for client in ZKP_public_json
+    # <client_round_ID> <ON/OFF>
+
+    # SUCCESS
+    data = await Helper.receive_data(reader)
+    if data == b"SUCCESS":
+        print(f"Successfully send round result to the Trusted party")
+    else:
+        print(f"Trusted party returns {data}")
+    writer.close()

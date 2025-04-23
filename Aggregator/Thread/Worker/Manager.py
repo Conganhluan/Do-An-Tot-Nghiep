@@ -75,6 +75,7 @@ class Client_info:
 
         # After training
         self.is_online = False
+        self.is_neighbor_online = False
         self.local_parameters : numpy.ndarray[numpy.int64] = None
         self.local_r : int = 0
         self.committed_parameters : numpy.ndarray[numpy.uint64] = None 
@@ -136,6 +137,12 @@ class Manager:
         class AGGREGATE:
             # Used to indicate that not to receive any local model from clients
             pass
+        class PROVE:
+            # When Aggregator got the Prove_key from the Trusted Party
+            pass
+        class END_ROUND:
+            # Used to indicate send demand information to another components
+            pass
 
     def __init__(self, model_type: type):
         # FL parameters
@@ -160,6 +167,13 @@ class Manager:
         # Round parameters
         self.client_list = None
         self.q = 0
+        
+    def clear_round_info(self):
+        self.timeout = True
+        self.timeout_time = 0
+        self.receive_data = 0
+        self.global_model = None
+        self.client_list = None
     
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:

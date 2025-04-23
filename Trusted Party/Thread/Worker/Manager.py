@@ -1,6 +1,6 @@
 from Thread.Worker.Helper import Helper
 from Thread.Worker.BaseModel import *           # This can be removed
-import random, numpy
+import random, numpy, time, threading
 from sympy import randprime, primitive_root
 from copy import deepcopy
 
@@ -23,6 +23,7 @@ class Client_info:
         self.round_ID = 0
         self.DH_public_key = 0
         self.neighbor_list = None
+        self.accuracy_ratio = 0
 
     def set_DH_public_key(self, DH_public_key: int):
         self.DH_public_key = DH_public_key
@@ -66,6 +67,9 @@ class Manager():
         class STOP:
             # Used to indicate situation that needs process stopping
             pass
+        class END_ROUND:
+            # When gather enough client result or out of timer
+            pass
 
     def __init__(self):
         # FL parameters
@@ -83,6 +87,32 @@ class Manager():
         self.stop_message = ""
         # Round parameters
         self.round_manager : Round_Manager = None
+
+    def end_round(self) -> bool:
+        
+        # Check information between clients and Aggregator
+        checked = all([all(self.last_commitment == another_commit) for another_commit in self.round_manager.received_commit[1:]])
+        if not checked:
+            self.stop("The parameters between clients are not the same")
+            return False
+        
+        # Check the accuracy evaluation from the client
+        accuracy_list = [client.accuracy_ratio for client in self.round_manager.client_list if client.accuracy_ratio]
+        avg_accuracy = sum(accuracy_list)/len(accuracy_list)
+        print(f"Average accuracy from client: {avg_accuracy}")
+        valid_accuracy = sum([1 if accuracy >= 90 else 0 for accuracy in accuracy_list])
+        if valid_accuracy >= 0.8 * len(self.round_manager.client_list):
+            self.stop("There are more than 80% of client have more than 90% accuracy on the aggregated global model")
+            return False
+
+        # Update information
+        self.current_round += 1
+        self.old_gs_mask = self.new_gs_mask
+        self.new_gs_mask = random.randint(1, 2 ** 64)
+        del self.round_manager
+
+        # Return TRUE when there is next round
+        return True
 
     def stop(self, message: str):
         self.stop_message = message
@@ -112,6 +142,16 @@ class Manager():
 
     def set_last_model_commitment(self, model_commitment: numpy.ndarray[numpy.int64]):
         self.last_commitment = model_commitment
+
+    def calculate_choosibility(self, round_attendees: list[Client_info]):
+        chosen_ones = list()
+        for attendee in round_attendees:
+            client = self.__get_client_by_ID__(attendee.ID)
+            client.choose_possibility -= 25
+            chosen_ones.append(client)
+        for client in self.client_list:
+            if client not in chosen_ones:
+                client.choose_possibility += 25
 
     def __get_client_by_ID__(self, client_ID: int) -> Client_info | None:
         for client_info in self.client_list:
@@ -147,11 +187,37 @@ class Manager():
             return_list.append(chosen_one)
         return return_list
     
+    def end_timer(self):
+        self.timeout = True
+        self.timeout_time = time.time()
+        self.set_flag(self.FLAG.END_ROUND)
+        self.checker = None
+
+    def the_checker(self):
+        while True:
+            if self.timeout:
+                return
+            elif len(self.round_manager.received_commit) == len(self.round_manager.client_list):
+                print("There are enough clients sending their round result")
+                self.timer.cancel()
+                self.end_timer()
+                return
+            time.sleep(10)
+
+    def start_timer(self, timeout_seconds: int = 60):
+        self.timeout = False
+        self.timer = threading.Timer(timeout_seconds, self.end_timer)
+        self.timer.start()
+
+        self.checker = threading.Thread(target=self.the_checker)
+        self.checker.start()
+
 class Round_Manager():
 
     def __init__(self, client_list: list[Client_info], round_number: int, commiter: Commiter):
         self.client_list = client_list
         self.round_number = round_number
+        self.received_commit = list()
         
         # Create graph and add round information for clients
         # Please insert here to specify the neighbor_num more useful

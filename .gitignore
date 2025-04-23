@@ -3,3 +3,6 @@ note.txt
 */Thread/Worker/Data/*
 *test*
 __pycache__
+*.wtns
+*.ptau
+*.zkey

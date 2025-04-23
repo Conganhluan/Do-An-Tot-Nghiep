@@ -148,16 +148,17 @@ Client      >>> SUCCESS
 
 15. Aggregator sends round-end signal to Trusted Party
 ```
-Aggregator  >>> AGG_END <global_model_commit> <client_num>
-            In loop of <client_num>:
-                >>> <cient_round_ID> <ON/OFF>
+Aggregator  >>> AGG_END <parameters_commit>
+            In loop of round client number:
+                >>> <cient_round_ID> <client_data_num> <Offline training (ON/OFF)> <Offline neighbor (ON/OFF)>
 3rd Trusted >>> SUCCESS
 ```
 
 16. Client sends round-end signal to Trusted Party
 ```
-Client      >>> CLIENT_END <global_model_commit> <accuracy_evaluation> <client_num>
-            In loop of <client_num>:
+Client      >>> CLIENT_END <parameters_commit>
+            >>> <client_round_ID> <accuracy_evaluation>
+            In loop of round client number:
                 >>> <client_round_ID> <ON/OFF>
 3rd Trusted >>> SUCCESS
 ```
