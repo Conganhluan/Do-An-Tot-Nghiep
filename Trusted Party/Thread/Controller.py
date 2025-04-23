@@ -35,12 +35,20 @@ def controller_thread(manager: Manager):
 
                 # Filter unalive ones
                 asyncio.run(send_PING(client_list, chosen_clients, ATTEND_CLIENTS))
-                    
+            
+            # Calculate the choosibility number
+            manager.calculate_choosibility(available_client_list)
+
             # Create round manger
             manager.round_manager = Round_Manager(client_list, manager.get_current_round(), manager.get_commiter())
             asyncio.run(send_DH_PARAM(manager))
             asyncio.run(send_ROUND_INFO_client(manager))
             asyncio.run(send_ROUND_INFO_aggregator(manager))
+
+        elif flag == manager.FLAG.END_ROUND:
+
+            if manager.end_round():
+                manager.set_flag(manager.FLAG.START_ROUND)
 
         else:
 

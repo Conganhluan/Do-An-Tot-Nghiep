@@ -66,7 +66,10 @@ async def send_GLOB_MODEL_each(manager: Manager, client: Client_info, global_par
 
 async def send_GLOB_MODEL(manager: Manager):
 
-    global_parameters = manager.get_global_model_parameters().tobytes()
+    if manager.global_model:
+        global_parameters = manager.get_global_model_parameters().tobytes()
+    else:
+        global_parameters = manager.global_parameters.tobytes()
 
     for client in manager.client_list:
         asyncio.create_task(send_GLOB_MODEL_each(manager, client, global_parameters))
@@ -83,32 +86,37 @@ async def send_GLOB_MODEL(manager: Manager):
 # Aggregator gets secrets points from Clients
 async def send_STATUS_each(manager: Manager, client: Client_info, status_list: list[bool]):
 
-    reader, writer = await asyncio.open_connection(client.host, client.port)
-    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+    try:
+        reader, writer = await asyncio.open_connection(client.host, client.port)
+        _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
 
-    # STATUS <neighbor_num>
-    data = f"STATUS {len(client.neighbor_list)}"
-    await Helper.send_data(writer, data)
+        # STATUS <neighbor_num>
+        data = f"STATUS {len(client.neighbor_list)}"
+        await Helper.send_data(writer, data)
 
-    for neighbor_ID in client.neighbor_list:
-    
-        # <neighbor_round_ID> <ON/OFF>
-        sent_data = f"{neighbor_ID} {"ON" if status_list[neighbor_ID] else "OFF"}"
-        await Helper.send_data(writer, sent_data)
-        print(f"Send client {neighbor_ID} status to client {client.round_ID}")
-
-        # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
-        receiv_data = await Helper.receive_data(reader)
-        x_point, x_point_signature, y_point, y_point_signature = [int(number) for number in receiv_data.split(b' ')]
+        for neighbor_ID in client.neighbor_list:
         
-        if not client.check_signature(x_point, x_point_signature) or not client.check_signature(y_point, y_point_signature):
-            manager.abort(f"There is something wrong with the points from client {client.round_ID}")
-        else:
-            manager.get_client_by_ID(neighbor_ID).add_secret_points(x_point, y_point, x_point_signature, y_point_signature, client.round_ID)
+            # <neighbor_round_ID> <ON/OFF>
+            sent_data = f"{neighbor_ID} {"ON" if status_list[neighbor_ID] else "OFF"}"
+            await Helper.send_data(writer, sent_data)
+            print(f"Send client {neighbor_ID} status to client {client.round_ID}")
 
-    # SUCCESS
-    await Helper.send_data(writer, "SUCCESS")
-    print(f"Successfully receive neighbor secret points from client {client.round_ID}")
+            # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
+            receiv_data = await Helper.receive_data(reader)
+            x_point, x_point_signature, y_point, y_point_signature = [int(number) for number in receiv_data.split(b' ')]
+            
+            if not client.check_signature(x_point, x_point_signature) or not client.check_signature(y_point, y_point_signature):
+                manager.abort(f"There is something wrong with the points from client {client.round_ID}")
+            else:
+                manager.get_client_by_ID(neighbor_ID).add_secret_points(x_point, y_point, x_point_signature, y_point_signature, client.round_ID)
+
+        # SUCCESS
+        await Helper.send_data(writer, "SUCCESS")
+        print(f"Successfully receive neighbor secret points from client {client.round_ID}")
+        client.is_neighbor_online = True
+    
+    except ConnectionRefusedError:
+        print(f"Client {client.round_ID} is offline!")
 
 async def send_STATUS(manager: Manager):
 
@@ -162,6 +170,12 @@ async def send_AGG_MODEL_each(manager: Manager, client: Client_info, global_para
     # <parameters_commit>
     await Helper.send_data(writer, parameters_commit)
 
+    # <ZKP_proof>
+    await Helper.send_data(writer, open("Thread/Worker/Data/proof.json", "rb").read())
+
+    # <ZKP_public_params>
+    await Helper.send_data(writer, open("Thread/Worker/Data/public.json", "rb").read())
+
     # SUCCESS
     data = await Helper.receive_data(reader)
     if data == b"SUCCESS":
@@ -181,3 +195,33 @@ async def send_AGG_MODEL(manager: Manager):
     all_remaining_tasks = asyncio.all_tasks()
     all_remaining_tasks.remove(asyncio.current_task())
     await asyncio.wait(all_remaining_tasks)
+
+
+
+###########################################################################################################
+
+
+
+# Aggregator sends round-end signal to Trusted Party
+async def send_AGG_END(manager: Manager):
+
+    reader, writer = await asyncio.open_connection(TRUSTED_PARTY_HOST, TRUSTED_PARTY_PORT)
+    _ = await reader.read(3)  # Remove first 3 bytes of Telnet command
+
+    # AGG_END <parameters_commit>
+    parameters_commit = manager.get_global_commit(manager.global_parameters).tobytes()
+    data = "AGG_END ".encode() + parameters_commit
+    await Helper.send_data(writer, data)
+
+    for client in manager.client_list:
+        # <cient_round_ID> <client_data_num> <Offline training (ON/OFF)> <Offline neighbor (ON/OFF)>
+        data = f"{client.round_ID} {client.local_datanum} {"ON" if client.is_online else "OFF"} {"ON" if client.is_neighbor_online else "OFF"}"
+        await Helper.send_data(writer, data)
+
+    # SUCCESS
+    data = await Helper.receive_data(reader)
+    if data == b"SUCCESS":
+        print(f"Successfully send round result to the Trusted Party")
+    else:
+        print(f"Trusted Party returns {data}")
+    writer.close()

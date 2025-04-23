@@ -32,8 +32,19 @@ def controller_thread(manager: Manager):
 
             asyncio.run(send_STATUS(manager))
             manager.aggregate()
-            ZKP.create_ZKP(manager)
+            # ZKP.create_ZKP(manager)
+            # asyncio.run(send_CIRCUIT(manager))
+            manager.set_flag(manager.FLAG.PROVE)        # Comment this when use ZKP
+
+        elif flag == manager.FLAG.PROVE:
+            # ZKP.prove(manager)
+            manager.set_flag(manager.FLAG.END_ROUND)
+
+        elif flag == manager.FLAG.END_ROUND:
+
             asyncio.run(send_AGG_MODEL(manager))
+            asyncio.run(send_AGG_END(manager))
+            manager.clear_round_info()
 
         elif flag == manager.FLAG.RE_REGISTER:
 

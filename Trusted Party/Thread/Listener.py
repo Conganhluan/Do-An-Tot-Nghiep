@@ -1,5 +1,5 @@
 import asyncio, telnetlib3, time, dill as pickle, struct, numpy
-from Thread.Worker.Manager import Manager, RSA_public_key
+from Thread.Worker.Manager import Manager, RSA_public_key, Client_info
 from Thread.Worker.Helper import Helper
 
 TRUSTED_PARTY_PORT = Helper.get_env_variable("TRUSTED_PARTY_PORT")
@@ -71,7 +71,76 @@ def listener_thread(manager: Manager):
             else:
                 print(f"Client {host}:{port} returns {data}")
             writer.close()
-        
+
+        # Aggregator sends round-end signal to Trusted Party
+        elif b'AGG_END' == data[:7]:
+
+            # AGG_END <parameters_commit>
+            parameters_commit = numpy.frombuffer(data[8:], dtype=numpy.uint64)
+            manager.set_last_model_commitment(parameters_commit)
+
+            last_round_attendees = list()
+            for _ in range(len(manager.client_list)):
+
+                # <cient_round_ID> <client_data_num> <Offline training (ON/OFF)> <Offline neighbor (ON/OFF)>
+                data = await Helper.receive_data(reader)
+                round_ID, data_num, status, neighbor_status = data.split(b' ', 3)
+                round_ID, data_num = int(round_ID), int(data_num)
+                status, neighbor_status = status.decode(), neighbor_status.decode()
+                the_client = manager.__get_client_by_round_ID__(round_ID)
+                if status == "OFF":
+                    the_client.choose_possibility -= 20
+                if neighbor_status == "OFF":
+                    the_client.choose_possibility -= 30
+                last_round_attendees.append((the_client, data_num))
+            
+            # last_round_attendees : list[tuple[Client_info, int]] = sorted(last_round_attendees, key=lambda x: x[1], reverse=True)
+            # first_data_num = last_round_attendees[0][1]
+            # second_data_num = -1
+            # third_data_num = -1
+            # for attendee in last_round_attendees:
+            #     if attendee[1] == first_data_num:
+            #         attendee[0].choose_possibility += 25
+            #     elif attendee[1] < first_data_num:
+            #         if second_data_num == -1:
+            #             second_data_num = attendee[1]
+            #             attendee[0].choose_possibility += 15
+            #         elif attendee[1] == second_data_num:
+            #             attendee[0].choose_possibility += 15
+            #         elif attendee[1] < second_data_num:
+            #             if third_data_num == -1:
+            #                 third_data_num = attendee[1]
+            #                 attendee[0].choose_possibility += 5
+            #             elif attendee[1] == third_data_num:
+            #                 attendee[0].choose_possibility += 5
+            #             elif attendee[1] < third_data_num:
+            #                 break
+            
+            # SUCCESS
+            await Helper.send_data(writer, "SUCCESS")
+            print(f"Successfully get the round result the Aggregator")
+            manager.start_timer(180)
+            writer.close()
+
+        elif b'CLI_END' == data[:7]:
+            
+            parameters_commit = numpy.frombuffer(data[8:], dtype=numpy.uint64)
+            manager.round_manager.received_commit.append(parameters_commit)
+
+            # <client_round_ID> <accuracy_evaluation>
+            data = await Helper.receive_data(reader)
+            round_ID, accuracy = data.split(b' ', 1)
+            round_ID, accuracy = int(round_ID), float(accuracy)
+            manager.round_manager.__get_client_by_round_ID__(round_ID).accuracy_ratio = accuracy
+
+            # for _ in range(len(manager.round_manager.client_list)):
+            # <client_round_ID> <ON/OFF>
+
+            # SUCCESS
+            await Helper.send_data(writer, "SUCCESS")
+            print(f"Successfully get the round result the client {round_ID}")
+            writer.close()
+
         else:
             await Helper.send_data(writer, "Operation not allowed!")
 

@@ -81,7 +81,7 @@ class Trainer:
             self.optimizer.step()
     
     @torch.no_grad
-    def test(self, data_loader: DataLoader, epoch_idx: int):
+    def test(self, data_loader: DataLoader, epoch_idx: int) -> float:
         
         test_loss = 0
         correct = 0
@@ -92,9 +92,53 @@ class Trainer:
             pred = output.data.max(1, keepdim = True)[1]
             correct += pred.eq(target.view_as(pred)).long().cpu().sum()
         test_loss /= len(data_loader.dataset)
+        accuracy_rate = 100. * correct / len(data_loader.dataset)
         print('Epoch {} result: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
-            epoch_idx, test_loss, correct, len(data_loader.dataset),
-            100. * correct / len(data_loader.dataset)))
+            epoch_idx, test_loss, correct, len(data_loader.dataset), accuracy_rate))
+        
+        return accuracy_rate
+    
+    @torch.no_grad
+    def self_evaluate(self) -> float:
+
+        test_loss = 0
+        correct = 0
+        data_loader = DataLoader(self.__get_data__(self.self_test_data))
+
+        for data, target in tqdm(data_loader, unit=" data", leave=False):
+            output = self.local_model(data)
+            test_loss += F.nll_loss(output, target, reduction="sum").item()
+            pred = output.data.max(1, keepdim = True)[1]
+            correct += pred.eq(target.view_as(pred)).long().cpu().sum()
+        test_loss /= len(data_loader.dataset)
+        accuracy_rate = 100. * correct / len(data_loader.dataset)
+        print('Round result: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+            test_loss, correct, len(data_loader.dataset), accuracy_rate))
+
+        del self.self_test_data
+        del self.self_train_data
+
+        return accuracy_rate
+
+    @torch.no_grad
+    def total_evaluate(self):
+
+        test_loss = 0
+        correct = 0
+        data_loader = DataLoader(self.__get_data__(Subset(self.root_test_data, range(len(self.root_test_data)))))
+
+        for data, target in tqdm(data_loader, unit=" data", leave=False):
+            output = self.local_model(data)
+            test_loss += F.nll_loss(output, target, reduction="sum").item()
+            pred = output.data.max(1, keepdim = True)[1]
+            correct += pred.eq(target.view_as(pred)).long().cpu().sum()
+        test_loss /= len(data_loader.dataset)
+        accuracy_rate = 100. * correct / len(data_loader.dataset)
+        print('Round result: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+            test_loss, correct, len(data_loader.dataset), accuracy_rate))
+
+        del self.root_test_data
+        del self.root_train_data
 
     def train_model(self):
 

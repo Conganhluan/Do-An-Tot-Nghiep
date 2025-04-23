@@ -31,4 +31,8 @@ def controller_thread(manager: Manager):
             manager.start_train()
             asyncio.run(send_LOCAL_MODEL(manager))
 
+        elif flag == manager.FLAG.END_ROUND:
+
+            asyncio.run(send_CLI_END(manager))
+
         sleep(5)
