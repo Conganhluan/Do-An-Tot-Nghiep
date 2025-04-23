@@ -168,6 +168,13 @@ class Manager:
         self.client_list = None
         self.q = 0
     
+    def clear_round_info(self):
+        self.timeout = True
+        self.timeout_time = 0
+        self.received_data = 0
+        self.global_model = None
+        self.client_list = None
+
     def get_flag(self) -> type:
         if self.flag == Manager.FLAG.NONE:
             return Manager.FLAG.NONE
