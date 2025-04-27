@@ -93,3 +93,9 @@ class Helper:
         # Receive data
         data = await reader.readexactly(data_len)
         return data
+    
+    @staticmethod
+    def log(log_msg: str) -> None:
+        log_file = open("log/" + Helper.get_env_variable("LOG_FILE"), 'a', encoding='UTF-8')
+        log_file.write(log_msg + "\n")
+        log_file.close()

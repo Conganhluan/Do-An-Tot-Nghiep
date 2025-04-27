@@ -43,9 +43,7 @@ class Trainer:
 
     def load_parameters(self, parameters: numpy.ndarray[numpy.float32], round_ID: int):
         tensor = torch.tensor(parameters, dtype=torch.float32, requires_grad=True)
-        torch.save(self.local_model, f"Thread/Worker/Data/Models/{round_ID}_old.pth")
         vector_to_parameters(tensor, self.local_model.parameters())
-        torch.save(self.local_model, f"Thread/Worker/Data/Models/{round_ID}_new.pth")
 
     def get_parameters(self) -> numpy.ndarray[numpy.float32]:
         return parameters_to_vector(self.local_model.parameters()).detach().numpy()

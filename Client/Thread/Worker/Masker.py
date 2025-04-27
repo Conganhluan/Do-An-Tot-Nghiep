@@ -41,7 +41,7 @@ class Masker:
         coeffs = [secret] + list(choices(range(1, coeff_limit), k = share_limit - 1))
 
         # Make point_list((x1,y1), (x2, y2))
-        x_list = list(sample(range(1, neighbor_num + 1), neighbor_num))
+        x_list = list(range(1, neighbor_num + 1))
         point_list = []
         for x in x_list:
             parameter = 1
