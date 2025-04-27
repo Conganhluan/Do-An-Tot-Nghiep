@@ -99,7 +99,7 @@ async def send_STATUS_each(manager: Manager, client: Client_info, status_list: l
             # <neighbor_round_ID> <ON/OFF>
             sent_data = f"{neighbor_ID} {"ON" if status_list[neighbor_ID] else "OFF"}"
             await Helper.send_data(writer, sent_data)
-            print(f"Send client {neighbor_ID} status to client {client.round_ID}")
+            # print(f"Send client {neighbor_ID} status to client {client.round_ID}")
 
             # <SS_point_X/PS_point_X> <signature> <SS_point_Y/PS_point_Y> <signature>
             receiv_data = await Helper.receive_data(reader)
@@ -186,9 +186,10 @@ async def send_AGG_MODEL_each(manager: Manager, client: Client_info, global_para
 
 async def send_AGG_MODEL(manager: Manager):
 
-    manager.commiter.gen_new_secret()
     global_parameters = manager.global_parameters.tobytes()
     parameters_commit = manager.get_global_commit(manager.global_parameters).tobytes()
+    # print("Send parameter commit to Client:")
+    # print(manager.get_global_commit(manager.global_parameters))
 
     for client in manager.client_list:
         asyncio.create_task(send_AGG_MODEL_each(manager, client, global_parameters, parameters_commit))
@@ -210,6 +211,8 @@ async def send_AGG_END(manager: Manager):
 
     # AGG_END <parameters_commit>
     parameters_commit = manager.get_global_commit(manager.global_parameters).tobytes()
+    # print("Send parameter commit to Trusted Party:")
+    # print(manager.get_global_commit(manager.global_parameters))
     data = "AGG_END ".encode() + parameters_commit
     await Helper.send_data(writer, data)
 

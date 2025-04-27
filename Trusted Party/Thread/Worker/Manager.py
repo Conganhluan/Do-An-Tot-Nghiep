@@ -87,22 +87,35 @@ class Manager():
         self.stop_message = ""
         # Round parameters
         self.round_manager : Round_Manager = None
+        self.round_attendees : dict [int : list[int, int, float]]= dict()
 
     def end_round(self) -> bool:
         
         # Check information between clients and Aggregator
-        checked = all([all(self.last_commitment == another_commit) for another_commit in self.round_manager.received_commit[1:]])
+        checked = all([all(self.last_commitment == another_commit) for another_commit in self.round_manager.received_commit])
         if not checked:
-            self.stop("The parameters between clients are not the same")
+            self.stop("The parameters between Aggregators and Clients are not the same")
+            print(self.last_commitment)
+            for commitment in self.round_manager.received_commit:
+                print(commitment)
             return False
         
         # Check the accuracy evaluation from the client
-        accuracy_list = [client.accuracy_ratio for client in self.round_manager.client_list if client.accuracy_ratio]
-        avg_accuracy = sum(accuracy_list)/len(accuracy_list)
-        print(f"Average accuracy from client: {avg_accuracy}")
-        valid_accuracy = sum([1 if accuracy >= 90 else 0 for accuracy in accuracy_list])
-        if valid_accuracy >= 0.8 * len(self.round_manager.client_list):
-            self.stop("There are more than 80% of client have more than 90% accuracy on the aggregated global model")
+        round_idx = self.current_round
+        client_list = set()
+        total_accuracy = 0
+        while round_idx >= 0:
+            for round_attendee in self.round_attendees[round_idx]:
+                if round_attendee[0] in client_list:
+                    continue
+                elif round_attendee[2] == -1:
+                    continue
+                total_accuracy += round_attendee[2]
+                client_list.add(round_attendee[0])
+            if len(client_list) >= 0.8 * len(self.client_list):
+                break
+        print(f"Average accuracy {total_accuracy/len(client_list)*100}% of total {len(client_list)} clients")
+        if len(client_list) >= 0.8 * len(self.client_list) and total_accuracy / len(client_list) > 90:
             return False
 
         # Update information

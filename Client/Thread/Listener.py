@@ -169,6 +169,8 @@ def listener_thread(manager: Manager):
             # <parameters_commit>
             data = await Helper.receive_data(reader)
             parameters_commit = numpy.frombuffer(data, dtype=numpy.uint64)
+            print("Got parameter commit")
+            print(parameters_commit)
 
             # <ZKP_proof>
             data = await Helper.receive_data(reader)

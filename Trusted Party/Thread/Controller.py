@@ -21,7 +21,7 @@ def controller_thread(manager: Manager):
         elif flag == manager.FLAG.START_ROUND:
             
             # Choose clients for training round
-            client_list = list()
+            client_list : list [Client_info]= list()
             ATTEND_CLIENTS = [Helper.get_env_variable('ATTEND_CLIENTS')]
             available_client_list = deepcopy(manager.client_list)                         # Available clients
             
@@ -40,7 +40,11 @@ def controller_thread(manager: Manager):
             manager.calculate_choosibility(available_client_list)
 
             # Create round manger
-            manager.round_manager = Round_Manager(client_list, manager.get_current_round(), manager.get_commiter())
+            current_round = manager.get_current_round()
+            manager.round_manager = Round_Manager(client_list, current_round, manager.get_commiter())
+            manager.round_attendees[current_round] = list()
+            for client in manager.round_manager.client_list:
+                manager.round_attendees[current_round].append([client.ID, client.round_ID, -1])
             asyncio.run(send_DH_PARAM(manager))
             asyncio.run(send_ROUND_INFO_client(manager))
             asyncio.run(send_ROUND_INFO_aggregator(manager))

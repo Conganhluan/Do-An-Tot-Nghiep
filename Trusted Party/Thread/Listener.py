@@ -132,9 +132,13 @@ def listener_thread(manager: Manager):
             round_ID, accuracy = data.split(b' ', 1)
             round_ID, accuracy = int(round_ID), float(accuracy)
             manager.round_manager.__get_client_by_round_ID__(round_ID).accuracy_ratio = accuracy
+            for attendee_info in manager.round_attendees[manager.get_current_round()]:
+                if attendee_info[1] == round_ID:
+                    attendee_info[2] = accuracy
+                    break
 
             # for _ in range(len(manager.round_manager.client_list)):
-            # <client_round_ID> <ON/OFF>
+                # <client_round_ID> <ON/OFF>
 
             # SUCCESS
             await Helper.send_data(writer, "SUCCESS")

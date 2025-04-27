@@ -42,8 +42,9 @@ def controller_thread(manager: Manager):
 
         elif flag == manager.FLAG.END_ROUND:
 
-            asyncio.run(send_AGG_MODEL(manager))
+            manager.commiter.gen_new_secret()
             asyncio.run(send_AGG_END(manager))
+            asyncio.run(send_AGG_MODEL(manager))
             manager.clear_round_info()
 
         elif flag == manager.FLAG.RE_REGISTER:

@@ -145,6 +145,8 @@ async def send_CLI_END(manager: Manager):
 
     # CLI_END <global_model_commit> <client_num>
     data = "CLI_END ".encode() + manager.last_commit.tobytes()
+    # print("Send parameter commit to Trusted Party:")
+    # print(manager.last_commit)
     await Helper.send_data(writer, data)
 
     # <client_round_ID> <accuracy_evaluation>
